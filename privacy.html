@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kebijakan Privasi — okane</title>
+  <link rel="icon" href="./icons/logo.svg" type="image/svg+xml">
+  <style>
+    :root { --bg: #F3F6F5; --text: #10201C; --muted: #5B6B66; --primary: #0B5D4E; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0E1513; --text: #E6EEEB; --muted: #9AABA5; --primary: #7FE0BF; } }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 680px; margin: 0 auto; padding: 32px 16px 48px; }
+    h1 { font-size: 26px; margin: 0 0 4px; } h2 { font-size: 18px; margin: 28px 0 6px; }
+    p, li { color: var(--text); } .muted { color: var(--muted); } a { color: var(--primary); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Kebijakan Privasi okane</h1>
+  <p class="muted">Berlaku sejak 15 November 2026</p>
+
+  <p>okane adalah aplikasi web untuk mencatat keuangan harian. Aplikasi ini berjalan sepenuhnya di browser kamu dan <b>tidak memiliki server</b>. Pengembang okane tidak dapat melihat, menyimpan, atau mengumpulkan data keuanganmu.</p>
+
+  <h2>Data yang diakses</h2>
+  <ul>
+    <li>okane meminta izin Google <code>drive.file</code>. Dengan izin ini okane hanya bisa membuat dan membuka file yang dibuat okane sendiri (spreadsheet "okane – Data"), bukan file lain di Google Drive-mu.</li>
+    <li>okane membaca alamat email akun Google-mu untuk ditampilkan di layar Pengaturan.</li>
+  </ul>
+
+  <h2>Tempat data disimpan</h2>
+  <ul>
+    <li>Semua catatan disimpan di spreadsheet "okane – Data" di Google Drive milikmu.</li>
+    <li>Salinan data disimpan di perangkatmu (IndexedDB browser) supaya aplikasi bisa dipakai tanpa internet. Salinan ini dihapus saat kamu memilih Keluar.</li>
+    <li>Tidak ada data yang dikirim ke server pengembang atau pihak ketiga. okane tidak memakai iklan maupun analitik.</li>
+  </ul>
+
+  <h2>Menghapus data dan mencabut akses</h2>
+  <ul>
+    <li>Cabut akses okane kapan saja di <a href="https://myaccount.google.com/connections">myaccount.google.com/connections</a>.</li>
+    <li>Hapus data dengan menghapus file "okane – Data" dari Google Drive-mu.</li>
+  </ul>
+
+  <p>Penggunaan informasi yang diterima dari Google API mematuhi <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, termasuk persyaratan Limited Use.</p>
+
+  <h2>Kontak</h2>
+  <p>Pertanyaan tentang kebijakan ini dapat diajukan lewat <a href="https://github.com/khairuddin-n/okane/issues">GitHub Issues</a>.</p>
+
+  <p><a href="./">← Kembali ke okane</a></p>
+</main>
+</body>
+</html>
