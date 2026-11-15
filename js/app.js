@@ -4,7 +4,8 @@ import { state } from './store.js';
 import { svg } from './icons.js';
 import { apply as applyTheme, onThemeChange } from './theme.js';
 import { todayISO, ym } from './dates.js';
-import { billsForMonth, billsDueSoon } from './model.js';
+import { billsForMonth, billsDueSoon, activeAccounts } from './model.js';
+import { GOOGLE_CLIENT_ID } from '../config.js';
 import beranda from './screens/beranda.js';
 import riwayat from './screens/riwayat.js';
 import catat from './screens/catat.js';
@@ -51,6 +52,9 @@ const ctx = () => ({
   syncNow: opts => app.syncNow?.(opts),
   logout: () => app.logout?.(),
   userAction: () => app.userAction?.(),
+  loginGoogle: () => app.loginGoogle?.(),
+  canGoogle: () => !!GOOGLE_CLIENT_ID,
+  canLocal: () => !GOOGLE_CLIENT_ID || ['localhost', '127.0.0.1'].includes(location.hostname) || /[?&]dev=1/.test(location.search),
 });
 
 // Hook yang diisi milestone berikutnya (sync, auth)
@@ -75,8 +79,9 @@ function route() {
   const full = location.hash || '#/beranda';
   if (stack.length > 1 && stack[stack.length - 2] === full) stack.pop(); else if (stack[stack.length - 1] !== full) stack.push(full);
 
-  if (!state.mode && path !== 'onboarding') { go('#/onboarding', { replace: true }); return; }
-  if (state.mode && path === 'onboarding') { go('#/beranda', { replace: true }); return; }
+  const needsOnb = !state.mode || !activeAccounts(state.rekening).length;
+  if (needsOnb && path !== 'onboarding') { go('#/onboarding', { replace: true }); return; }
+  if (!needsOnb && path === 'onboarding') { go('#/beranda', { replace: true }); return; }
 
   let found = null;
   for (const [re, screen, tab, names = []] of ROUTES) {
@@ -107,7 +112,7 @@ window.addEventListener('hashchange', route);
 
 async function boot() {
   applyTheme();
-  await store.init();
+  try { await store.init(); } catch (e) { console.error(e); view.innerHTML = '<p class="empty">Penyimpanan HP tidak tersedia. Coba buka di browser biasa (bukan mode samaran).</p>'; return; }
   route();
 }
 
