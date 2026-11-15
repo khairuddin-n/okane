@@ -114,6 +114,12 @@ export function normalize(s) {
   return String(s ?? '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
 }
 
+// cache normalisasi per objek transaksi (objek diganti saat diubah, jadi aman)
+const normCache = new WeakMap();
+const normTx = t => { let v = normCache.get(t); if (v === undefined) { v = normalize(t.catatan); normCache.set(t, v); } return v; };
+const wordCache = new WeakMap();
+const wordsTx = t => { let v = wordCache.get(t); if (!v) { v = new Set(normTx(t).split(' ')); wordCache.set(t, v); } return v; };
+
 const isManualTx = t => alive(t) && (t.tipe === 'keluar' || t.tipe === 'masuk') && t.sumber !== 'otomatis' && String(t.catatan || '').trim();
 const stamp = t => `${t.tanggal} ${t.jam || ''} ${t.dibuat || ''}`;
 
@@ -124,7 +130,7 @@ export function frequentEntries(transaksi, days = 60, n = 3, today, tipe) {
   for (const t of transaksi) {
     if (!isManualTx(t) || t.tanggal < from || t.tanggal > today) continue;
     if (tipe && t.tipe !== tipe) continue;
-    const key = JSON.stringify([normalize(t.catatan), t.kategori, t.akun, num(t.nominal), t.tipe]);
+    const key = JSON.stringify([normTx(t), t.kategori, t.akun, num(t.nominal), t.tipe]);
     const cur = map.get(key);
     if (!cur) map.set(key, { count: 1, last: stamp(t), tx: t });
     else { cur.count++; if (stamp(t) > cur.last) { cur.last = stamp(t); cur.tx = t; } }
@@ -142,7 +148,7 @@ export function matchNotes(transaksi, query, tipe, n = 3) {
   const map = new Map();
   for (const t of transaksi) {
     if (!isManualTx(t) || (tipe && t.tipe !== tipe)) continue;
-    const c = normalize(t.catatan);
+    const c = normTx(t);
     if (!(c.startsWith(q) || c.includes(' ' + q))) continue;
     const cur = map.get(c);
     if (!cur) map.set(c, { count: 1, last: stamp(t), tx: t, starts: c.startsWith(q) });
@@ -203,10 +209,10 @@ export function guessCategory(catatan, tipe, transaksi, kategori, dict = CATEGOR
   const hist = transaksi.filter(t => isManualTx(t) && t.tipe === tipe && active.has(t.kategori));
 
   // 1. Riwayat: catatan sama, lalu berawalan sama
-  let matches = hist.filter(t => normalize(t.catatan) === n);
+  let matches = hist.filter(t => normTx(t) === n);
   if (!matches.length && n.length >= 3) {
     matches = hist.filter(t => {
-      const c = normalize(t.catatan);
+      const c = normTx(t);
       return c.startsWith(n) || (c.length >= 3 && n.startsWith(c + ' '));
     });
   }
@@ -222,9 +228,8 @@ export function guessCategory(catatan, tipe, transaksi, kategori, dict = CATEGOR
   const words = [...new Set(n.split(' ').filter(w => w.length >= 3))].filter(w => !phraseWords.has(w));
   let bestWord = null;
   if (words.length) {
-    const tokenized = hist.map(t => ({ t, words: new Set(normalize(t.catatan).split(' ')) }));
     for (const w of words) {
-      const withWord = tokenized.filter(x => x.words.has(w)).map(x => x.t);
+      const withWord = hist.filter(t => wordsTx(t).has(w));
       if (withWord.length < 2) continue;
       const top = mostCommon(withWord, t => t.kategori);
       if (top.count >= 2 && top.count / top.total >= 0.7 && (!bestWord || top.count > bestWord.count)) {
