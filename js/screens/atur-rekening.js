@@ -17,9 +17,8 @@ const jadwal = () => (f.mode === 'akhir' ? 'akhir' : `tgl:${Math.max(1, Math.min
 
 function preview() {
   if (!f.adminOn || !(f.admin_nominal > 0)) return '';
-  const when = f.mode === 'akhir' ? 'Setiap akhir bulan' : `Setiap tanggal ${Math.max(1, Math.min(28, Number(f.day) || 1))}`;
   const next = nextAdminCharge({ admin_nominal: f.admin_nominal, admin_jadwal: jadwal(), dibuat: f.dibuat || nowISO() }, todayISO());
-  return `${when}, ${rupiah(-f.admin_nominal, { raw: true })} dicatat otomatis dari ${esc(f.nama || 'rekening ini')}.${next ? ` Berikutnya ${fmtDate(next.tanggal)}.` : ''}`;
+  return next ? `Berikutnya ${fmtDate(next.tanggal)} · ${rupiah(-f.admin_nominal, { raw: true })}` : '';
 }
 
 function render() {
@@ -27,8 +26,8 @@ function render() {
   return `
     <div class="top with-back"><button class="icon-btn" data-act="back" aria-label="Kembali">${svg('back')}</button><h1>${f.isNew ? 'Tambah rekening' : 'Atur rekening'}</h1></div>
     <form class="pad stack" id="form" autocomplete="off">
-      <label class="field"><span>Nama</span><input class="input" name="nama" required value="${esc(f.nama)}" placeholder="Contoh: BCA, GoPay, Dompet"></label>
-      <label class="field"><span>Keterangan</span><input class="input" name="keterangan" value="${esc(f.keterangan)}" placeholder="Opsional"></label>
+      <label class="field"><span>Nama</span><input class="input" name="nama" required value="${esc(f.nama)}" placeholder="BCA, GoPay, Dompet…"></label>
+      <label class="field"><span>Keterangan</span><input class="input" name="keterangan" value="${esc(f.keterangan)}" placeholder="—"></label>
       <div><div class="label">Jenis</div><div class="seg">${Object.entries(JENIS).map(([k, l]) => `<button type="button" data-jenis="${k}" class="${f.jenis === k ? 'on' : ''}" aria-pressed="${f.jenis === k}">${l}</button>`).join('')}</div></div>
       <div class="row2">
         <label class="field"><span>${f.isNew ? 'Saldo saat ini' : 'Saldo awal'}</span>${moneyInput('saldo_awal', f.saldo_awal)}</label>

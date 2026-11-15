@@ -1,7 +1,15 @@
 // Komponen UI bersama: tile, baris transaksi, bottom sheet, toast, input nominal.
 import { svg } from './icons.js';
-import { esc, rupiah, group, parseAmount } from './format.js';
+import { esc, rupiah, group, parseAmount, isPrivate, MASK } from './format.js';
 import { state, findCategory, findAccount } from './store.js';
+
+// Angka besar: "Rp" kecil di depan, angka tebal
+export function money(n, { sign = false } = {}) {
+  if (isPrivate()) return MASK;
+  n = Math.round(Number(n) || 0);
+  const s = n < 0 ? '−' : (sign && n > 0 ? '+' : '');
+  return `${s}<span class="cur">Rp</span>${group(n)}`;
+}
 
 export const JENIS = { bank: 'Bank', ewallet: 'E-wallet', tunai: 'Tunai' };
 

@@ -2,7 +2,7 @@ import { svg } from '../icons.js';
 import { esc, rupiah, compact, monthLong, monthShort, pct, isPrivate } from '../format.js';
 import { todayISO, ym, addMonths, daysInMonth, dayOf } from '../dates.js';
 import { budgetFor, totalBudget, spentInMonth, dailySpending, monthlyTotals, categoryReport, insights, num } from '../model.js';
-import { catTile, catStyle, openSheet, moneyInput, bindMoney, toast } from '../ui.js';
+import { catTile, catStyle, openSheet, moneyInput, bindMoney, toast, money } from '../ui.js';
 import { state, saveBudget } from '../store.js';
 
 let month = null;
@@ -13,8 +13,8 @@ function ring(p, ideal) {
   const shown = Math.min(1, p);
   const a = ideal * 2 * Math.PI - Math.PI / 2;
   const x1 = 52 + Math.cos(a) * 36, y1 = 52 + Math.sin(a) * 36, x2 = 52 + Math.cos(a) * 56, y2 = 52 + Math.sin(a) * 56;
-  return `<svg viewBox="0 0 104 104" width="104" height="104" aria-hidden="true">
-    <circle cx="52" cy="52" r="${r}" fill="none" stroke="var(--on-header-soft)" stroke-width="10"/>
+  return `<svg viewBox="0 0 104 104" width="112" height="112" aria-hidden="true">
+    <circle cx="52" cy="52" r="${r}" fill="none" stroke="var(--on-header-soft)" stroke-width="9"/>
     <circle cx="52" cy="52" r="${r}" fill="none" stroke="${p > 1 ? 'var(--warn)' : 'var(--on-header)'}" stroke-width="10" stroke-linecap="round"
       stroke-dasharray="${c * shown} ${c}" transform="rotate(-90 52 52)"/>
     ${ideal != null ? `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--on-header)" stroke-opacity=".8" stroke-width="2" stroke-linecap="round"/>` : ''}
@@ -42,10 +42,8 @@ function dailyChart(m, today, tb) {
   const avg = upto ? total / upto : 0;
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pengeluaran harian">
       <line x1="0" x2="${W}" y1="${base}" y2="${base}" stroke="var(--line)"/>${bars}${line}${ticks}</svg>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px"><span class="muted" style="font-size:13px">Rata-rata</span><b class="num">${rupiah(avg)}/hari</b></div>
-    <div class="legend">
-      <span><i style="background:var(--bar-low)"></i>Di bawah jatah</span><span><i style="background:var(--warn)"></i>Di atas jatah</span>
-      ${isCur ? '<span><i style="background:var(--primary)"></i>Hari ini</span>' : ''}${jatah ? `<span>- - Jatah ${rupiah(jatah)}/hari</span>` : ''}</div>`;
+    <div class="chart-foot"><span>Rata-rata per hari</span><b class="num">${rupiah(avg)}</b></div>
+    ${jatah ? `<div class="legend"><span><i style="background:var(--warn)"></i>Di atas jatah ${rupiah(jatah)}</span></div>` : ''}`;
 }
 
 function monthsChart(m) {
@@ -73,16 +71,16 @@ function catCard(m) {
       const cls = r.pct > 1 ? 'over' : r.pct >= 0.9 ? 'warn' : '';
       const rest = r.batas - r.spent;
       bar = `<div class="bar thin ${cls}"><i style="width:${Math.min(100, r.pct * 100)}%"></i></div>`;
-      ft = `<div class="ft"><span>budget ${rupiah(r.batas)}</span><span class="${cls || 'ok'}">${rest >= 0 ? `Sisa ${rupiah(rest)}` : `Lewat ${rupiah(-rest)}`}</span></div>`;
+      ft = `<div class="ft"><span>dari ${rupiah(r.batas)}</span><span class="${cls || 'ok'}">${rest >= 0 ? `Sisa ${rupiah(rest)}` : `Lewat ${rupiah(-rest)}`}</span></div>`;
     }
     return `<div class="cat-row"><div class="hd">${catTile('keluar', r.kategori)}
       <span class="mid">${esc(r.kategori)} <small>· ${pct(r.share)}</small></span><b class="num">${rupiah(r.spent)}</b></div>
       ${bar || ft ? `<div class="bt">${bar}${ft}</div>` : ''}</div>`;
   }).join('');
   return `<section class="card">
-    <div class="card-h"><h2>Kategori & budget</h2><button class="btn sm ghost" data-act="budget">Atur budget</button></div>
+    <div class="card-h"><h2>Kategori</h2><button class="btn sm" data-act="budget">Atur budget</button></div>
     ${comp ? `<div class="comp">${comp}</div>` : ''}
-    ${list || '<p class="empty">Belum ada pengeluaran bulan ini.</p>'}
+    ${list || '<p class="empty">Belum ada pengeluaran.</p>'}
   </section>`;
 }
 
@@ -91,14 +89,13 @@ function insightCards(m, today) {
   const rem = ins.perluDirem;
   const b = ins.banding;
   const remCard = `<div class="ins"><div class="t">Perlu direm</div>
-    ${rem.length ? `<div class="v">${esc(rem.slice(0, 2).map(r => r.kategori).join(', '))}</div><div class="d">${rem[0].pct > 1 ? `Lewat budget ${pct(rem[0].pct - 1)}` : `Sudah ${pct(rem[0].pct)} dari budget`}</div>`
-      : '<div class="v">Semua aman</div><div class="d">Belum ada kategori ≥90% budget</div>'}</div>`;
+    ${rem.length ? `<div class="v sm">${esc(rem.slice(0, 2).map(r => r.kategori).join(', '))}</div><div class="d">${pct(rem[0].pct)} dari budget</div>`
+      : '<div class="v t-income">Aman</div><div class="d">Semua di bawah 90%</div>'}</div>`;
   let cmp;
-  if (!b.upto || (!b.prevTotal && !b.thisTotal)) cmp = '<div class="ins"><div class="t">Dibanding bulan lalu</div><div class="v">—</div><div class="d">Belum cukup data</div></div>';
-  else if (!b.prevTotal) cmp = `<div class="ins"><div class="t">Dibanding bulan lalu</div><div class="v">—</div><div class="d">Belum ada data ${monthShort(b.prev)}</div></div>`;
-  else cmp = `<div class="ins"><div class="t">${b.hemat ? 'Lebih hemat' : 'Lebih boros'}</div>
-    <div class="v ${b.hemat ? 't-income' : 't-expense'}">${pct(Math.abs(b.pct))}</div>
-    <div class="d">dibanding ${monthShort(b.prev)} (tgl 1–${b.upto}), selisih ${rupiah(Math.abs(b.diff))}</div></div>`;
+  if (!b.upto || !b.prevTotal) cmp = `<div class="ins"><div class="t">vs ${monthShort(b.prev)}</div><div class="v">—</div><div class="d">Belum ada data</div></div>`;
+  else cmp = `<div class="ins"><div class="t">vs ${monthShort(b.prev)} (tgl 1–${b.upto})</div>
+    <div class="v ${b.hemat ? 't-income' : 't-expense'}">${b.pct > 0 ? '+' : b.pct < 0 ? '−' : ''}${pct(Math.abs(b.pct))}</div>
+    <div class="d">${b.hemat ? 'Lebih hemat' : 'Lebih boros'}</div></div>`;
   return `<div class="insights">${remCard}${cmp}</div>`;
 }
 
@@ -112,7 +109,7 @@ function openBudget(m) {
         <div style="width:150px">${moneyInput(`b_${k.nama}`, lim[k.nama] || 0, `aria-label="Budget ${esc(k.nama)}"`)}</div></div>`).join('')}
       <div style="display:flex;justify-content:space-between;font-weight:700;padding-top:4px"><span>Total</span><span class="num" id="bt"></span></div>
       <button class="btn primary big" type="submit">Simpan budget</button>
-      <p class="muted" style="font-size:12.5px;text-align:center">Budget berlaku juga untuk bulan-bulan berikutnya sampai diubah.</p></form>`,
+</form>`,
     onMount(el, close) {
       const inputs = kats.map(k => [k.nama, bindMoney(el.querySelector(`[name="b_${CSS.escape(k.nama)}"]`), () => upd())]);
       const upd = () => { el.querySelector('#bt').textContent = rupiah(inputs.reduce((s, [, i]) => s + i.get(), 0), { raw: true }); };
@@ -145,21 +142,20 @@ export default {
       const p = spent / tb;
       const rest = tb - spent;
       const left = isCur ? dim - d + 1 : 0;
-      const restLine = rest >= 0
-        ? (isCur ? `Sisa ${rupiah(rest)} untuk ${left} hari, aman ${rupiah(rest / left)}/hari` : `Sisa ${rupiah(rest)}`)
-        : `Lewat ${rupiah(-rest)} dari budget`;
+      const cells = isCur
+        ? [[rest >= 0 ? 'Sisa' : 'Lewat', rupiah(Math.abs(rest))], ['Aman/hari', rupiah(Math.max(0, rest) / left)], [`Ideal hari ke-${d}`, pct(ideal)]]
+        : [[rest >= 0 ? 'Sisa' : 'Lewat', rupiah(Math.abs(rest))], ['Budget', rupiah(tb)], ['Rata-rata/hari', rupiah(spent / dim)]];
       summary = `<div class="sum">
         <div class="ring">${ring(p, ideal)}<b>${pct(p)}<small>terpakai</small></b></div>
-        <div class="txt"><div class="l">Pengeluaran dari budget ${rupiah(tb)}</div><div class="big num">${rupiah(spent)}</div><div class="s">${restLine}</div></div></div>
-        ${isCur ? `<span class="pill">Hari ke-${d}: idealnya ${pct(ideal)}</span>` : ''}`;
+        <div class="txt"><div class="l">Pengeluaran</div><div class="big num">${money(spent)}</div><div class="s num">dari ${rupiah(tb)}</div></div></div>
+        <div class="hstats">${cells.map(([l, v]) => `<div><span>${l}</span><b class="num">${v}</b></div>`).join('')}</div>`;
     } else {
-      summary = `<div class="sum"><div class="txt"><div class="l">Pengeluaran ${monthLong(m)}</div><div class="big num">${rupiah(spent)}</div>
-        <div class="s">Belum ada budget. Atur budget supaya tahu batas aman per hari.</div></div></div>
+      summary = `<div class="sum"><div class="txt"><div class="l">Pengeluaran</div><div class="big num">${money(spent)}</div></div></div>
         <button class="pill" data-act="budget" style="border:0">Atur budget</button>`;
     }
     return `
       <header class="hdr">
-        <div class="hdr-top"><h1 style="font-size:20px;font-weight:800;color:var(--on-header)">Laporan</h1></div>
+        <div class="hdr-top"><h1 style="font-size:22px;font-weight:800;letter-spacing:-.03em;color:var(--on-header)">Laporan</h1></div>
         <div class="mpick">
           <button data-act="prev" aria-label="Bulan sebelumnya">${svg('chevronLeft')}</button>
           <b>${monthLong(m)}</b>
@@ -170,7 +166,7 @@ export default {
       <div class="pad stack" style="margin-top:14px">
         <section class="card">
           <div class="card-h"><h2>Pengeluaran</h2>
-            <div class="seg" style="width:170px"><button data-mode="harian" class="${mode === 'harian' ? 'on' : ''}">Harian</button><button data-mode="6bulan" class="${mode === '6bulan' ? 'on' : ''}">6 bulan</button></div></div>
+            <div class="seg" style="width:164px"><button data-mode="harian" class="${mode === 'harian' ? 'on' : ''}">Harian</button><button data-mode="6bulan" class="${mode === '6bulan' ? 'on' : ''}">6 bulan</button></div></div>
           ${mode === 'harian' ? dailyChart(m, today, tb) : monthsChart(m)}
         </section>
         ${catCard(m)}

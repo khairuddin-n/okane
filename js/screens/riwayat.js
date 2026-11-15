@@ -54,7 +54,7 @@ function listHTML(state) {
       <span class="num muted" style="font-size:13px;font-weight:600">${rupiah(net, { sign: true })}</span></div>
       <div class="card" style="margin:0 16px;padding:2px 16px"><div class="rows">${list.map(t => txRow(t)).join('')}</div></div>`;
   }
-  if (!shown.length) html = `<p class="empty" style="margin-top:24px">${q || filter !== 'all' ? 'Tidak ada transaksi yang cocok.' : 'Belum ada transaksi bulan ini.'}</p>`;
+  if (!shown.length) html = `<p class="empty" style="margin-top:24px">${q || filter !== 'all' ? 'Tidak ditemukan.' : 'Belum ada transaksi.'}</p>`;
   if (more) html += `<div class="pad" style="margin-top:14px"><button class="btn ghost big" data-act="more">Muat lagi</button></div>`;
   return { html, count: all.length };
 }
@@ -72,7 +72,7 @@ export default {
       <div class="top"><div style="flex:1"><h1>Riwayat</h1><div class="sub" id="rw-count">${count} transaksi</div></div></div>
       <div class="pad">
         <label class="search"><span class="sr-only">Cari transaksi</span>${svg('search', 18)}
-          <input id="rw-q" class="input" type="search" placeholder="Cari catatan, kategori, akun" value="${esc(q)}" autocomplete="off"></label>
+          <input id="rw-q" class="input" type="search" placeholder="Cari" value="${esc(q)}" autocomplete="off"></label>
       </div>
       <div class="chips scroll" style="padding:12px 16px 0">${chips.map(([k, l]) => `<button class="chip ${filter === k ? 'on' : ''}" data-f="${esc(k)}" aria-pressed="${filter === k}">${esc(l)}</button>`).join('')}</div>
       <div id="rw-list">${html}</div>`;

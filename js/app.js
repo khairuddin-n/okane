@@ -177,8 +177,8 @@ function renderNav() {
   const today = todayISO();
   const due = billsDueSoon(billsForMonth(state.tagihan, state.transaksi, ym(today)), today, 3).length > 0;
   nav.innerHTML = `<div class="nav-in">${NAV.map(n => n
-    ? `<a href="#/${n[0]}" class="${tab === n[0] ? 'on' : ''}" ${tab === n[0] ? 'aria-current="page"' : ''}>${svg(n[1], 22)}<span>${n[2]}</span>${n[0] === 'rekening' && due ? '<i class="dot" aria-label="Ada tagihan jatuh tempo"></i>' : ''}</a>`
-    : `<a href="#/catat" class="fab-wrap" aria-label="Catat transaksi"><span class="fab">${svg('plus', 28)}</span></a>`).join('')}</div>`;
+    ? `<a href="#/${n[0]}" class="${tab === n[0] ? 'on' : ''}" ${tab === n[0] ? 'aria-current="page"' : ''}><span class="ni">${svg(n[1], 22)}${n[0] === 'rekening' && due ? '<i class="dot" aria-label="Ada tagihan jatuh tempo"></i>' : ''}</span><span>${n[2]}</span></a>`
+    : `<a href="#/catat" class="fab-wrap" aria-label="Catat transaksi"><span class="fab">${svg('plus', 26)}</span></a>`).join('')}</div>`;
 }
 
 store.subscribe(() => { if (current?.screen.live) render(); else { renderNav(); renderBanner(); } });

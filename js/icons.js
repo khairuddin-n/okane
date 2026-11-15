@@ -69,6 +69,8 @@ export const UI_ICONS = {
   calendar: 'M4 5h16v16H4zM4 10h16M8 3v4M16 3v4',
   settings: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
   cloudOff: 'M3 3l18 18M8.5 6.2A6 6 0 0 1 17.7 10H18a4 4 0 0 1 2.7 7M17 19H7a5 5 0 0 1-1.6-9.7',
+  arrowDown: 'M12 5v14M5 12l7 7 7-7',
+  arrowUp: 'M12 19V5M5 12l7-7 7 7',
   info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v5M12 8h.01',
 };
 

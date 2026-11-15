@@ -2,7 +2,7 @@ import { svg } from '../icons.js';
 import { esc, rupiah, fmtDayMonth, monthShort } from '../format.js';
 import { todayISO, ym, diffDays, dayOf } from '../dates.js';
 import { balances, activeAccounts, byNewest, nextAdminCharge, billsForMonth, unpaidTotal, num } from '../model.js';
-import { txRow, JENIS, openSheet, toast, moneyInput, bindMoney, catTile, confirmSheet } from '../ui.js';
+import { txRow, JENIS, openSheet, toast, moneyInput, bindMoney, catTile, confirmSheet, money } from '../ui.js';
 import { state, saveTx, saveBill } from '../store.js';
 
 let tab = 'saldo';
@@ -30,16 +30,16 @@ function saldoTab(bal, today) {
     const txs = state.transaksi.filter(t => !t.dihapus && (t.akun === r.id || t.akun_tujuan === r.id)).sort(byNewest).slice(0, 3);
     const next = nextAdminCharge(r, today);
     const sched = next ? `<div class="row sched">${catTile('keluar', r.admin_kategori || 'Biaya bank')}
-      <span class="mid"><span class="ttl">Biaya admin bulanan</span><span class="meta">${esc(fmtDayMonth(next.tanggal))} · terjadwal otomatis</span></span>
+      <span class="mid"><span class="ttl">Biaya admin bulanan</span><span class="meta">${esc(fmtDayMonth(next.tanggal))} · terjadwal</span></span>
       <span class="amt num">${rupiah(-next.nominal)}</span></div>` : '';
     detail = `
       <div class="pad"><div class="actions">
-        <a class="act" href="#/catat?tipe=transfer&dari=${esc(r.id)}">${svg('transfer', 22)}Transfer</a>
-        <button class="act" data-act="adjust">${svg('adjust', 22)}Sesuaikan saldo</button>
-        <a class="act" href="#/rekening/atur/${esc(r.id)}">${svg('settings', 22)}Atur</a>
+        <a class="act" href="#/catat?tipe=transfer&dari=${esc(r.id)}"><span class="ib">${svg('transfer', 22)}</span>Transfer</a>
+        <button class="act" data-act="adjust"><span class="ib">${svg('check', 22)}</span>Sesuaikan</button>
+        <a class="act" href="#/rekening/atur/${esc(r.id)}"><span class="ib">${svg('settings', 22)}</span>Atur</a>
       </div></div>
       <div class="pad" style="margin-top:14px"><section class="card">
-        <div class="card-h"><h2>Mutasi ${esc(r.nama)}</h2><a class="link" href="#/riwayat?akun=${esc(r.id)}">Semua</a></div>
+        <div class="card-h"><h2>Mutasi</h2><a class="link" href="#/riwayat?akun=${esc(r.id)}">Semua ${svg('chevronRight', 16)}</a></div>
         ${sched || txs.length ? `<div class="rows">${sched}${txs.map(t => txRow(t)).join('')}</div>` : '<p class="empty">Belum ada mutasi.</p>'}
       </section></div>`;
   }
@@ -49,8 +49,8 @@ function saldoTab(bal, today) {
     <div class="carousel" id="car">
       ${accs.map(a => `<button class="acc-card k-${esc(a.jenis)} ${a.id === selected ? 'on' : ''}" data-card="${esc(a.id)}">
         <span class="top-l"><span><span class="nm" style="display:block">${esc(a.nama)}</span><span class="ket">${esc(a.keterangan || '')}</span></span><span class="jn">${JENIS[a.jenis] || ''}</span></span>
-        <span class="sl-l">Saldo</span><span class="sl num">${rupiah(bal.get(a.id))}</span></button>`).join('')}
-      ${accs.length ? '' : `<a class="acc-card on" href="#/rekening/atur/baru" style="background:var(--surface);color:var(--text);border:1.5px dashed var(--border);align-items:center;justify-content:center;gap:8px">${svg('plus', 26)}<b>Tambah rekening</b></a>`}
+        <span class="sl num">${money(bal.get(a.id))}</span></button>`).join('')}
+      ${accs.length ? '' : `<a class="acc-card on" href="#/rekening/atur/baru" style="background:var(--chip-bg);color:var(--text);align-items:center;justify-content:center;gap:8px;box-shadow:none">${svg('plus', 26)}<b>Tambah rekening</b></a>`}
     </div>
     <div class="dots">${accs.map(a => `<i class="${a.id === selected ? 'on' : ''}"></i>`).join('')}</div>
     ${detail}`;
@@ -64,10 +64,10 @@ function tagihanTab(total, today) {
   const freeShare = total > 0 ? Math.max(0, Math.min(1, free / total)) : 0;
   return `<div class="pad stack">
     <section class="card">
-      <div class="muted" style="font-size:13px;font-weight:600">Saldo bebas setelah tagihan</div>
-      <div class="num" style="font-size:24px;font-weight:800;margin:2px 0 10px">${rupiah(free)}</div>
+      <div class="muted" style="font-size:13px;font-weight:500">Saldo bebas setelah tagihan</div>
+      <div class="num" style="font-size:28px;font-weight:800;letter-spacing:-.03em;margin:2px 0 12px">${money(free)}</div>
       <div class="split"><i style="flex:${freeShare};background:var(--primary)"></i><i style="flex:${1 - freeShare};background:var(--warn)"></i></div>
-      <div class="legend"><span><i style="background:var(--primary)"></i>Bebas ${rupiah(free)}</span><span><i style="background:var(--warn)"></i>Tagihan belum dibayar ${rupiah(unpaid)}</span></div>
+      <div class="legend"><span><i style="background:var(--warn)"></i>Belum dibayar<b class="num">${rupiah(unpaid)}</b></span></div>
     </section>
     <section class="card" style="padding:6px 16px">
       ${bills.length ? `<div class="rows">${bills.map(b => {
@@ -76,9 +76,9 @@ function tagihanTab(total, today) {
           <button class="bill-date ${b.lunas ? 'paid' : soon ? 'soon' : ''}" data-bill="${esc(b.id)}" aria-label="Ubah tagihan ${esc(b.nama)}"><b>${dayOf(b.due)}</b><small>${monthShort(m)}</small></button>
           <button class="mid" data-bill="${esc(b.id)}" style="text-align:left"><span class="ttl" style="display:block">${esc(b.nama)}</span><span class="meta" style="display:block">${billMeta(b, today)}</span></button>
           <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><b class="num" style="font-size:14px">${rupiah(b.nominal)}</b>
-          ${b.lunas ? '<span class="paid-tag">Lunas ✓</span>' : `<a class="btn primary sm" href="#/catat?tagihan=${esc(b.id)}&periode=${m}">Bayar</a>`}</span>
+          ${b.lunas ? `<span class="paid-tag">${svg('check', 14)}Lunas</span>` : `<a class="btn primary sm" href="#/catat?tagihan=${esc(b.id)}&periode=${m}">Bayar</a>`}</span>
         </div>`;
-      }).join('')}</div>` : '<p class="empty">Belum ada tagihan. Tambahkan tagihan rutin seperti listrik, internet, atau kos lewat tombol +.</p>'}
+      }).join('')}</div>` : '<p class="empty">Belum ada tagihan.</p>'}
     </section></div>`;
 }
 

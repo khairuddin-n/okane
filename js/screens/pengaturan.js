@@ -1,6 +1,6 @@
 import { svg, CATEGORY_ICONS, ICON_KEYS } from '../icons.js';
 import { esc, initials, fmtDayMonth } from '../format.js';
-import { getPref, setPref, systemIsDark } from '../theme.js';
+import { getPref, setPref } from '../theme.js';
 import { tile, syncLabel, openSheet, toast, confirmSheet } from '../ui.js';
 import { state, setPrivacy, saveCategory } from '../store.js';
 import { COLOR_CHOICES } from '../schema.js';
@@ -20,34 +20,33 @@ function mainView() {
   const pref = getPref();
   const s = syncLabel();
   const privOnOpen = localStorage.getItem('privacyOnOpen') === '1';
-  const note = pref === 'system' ? `Mengikuti pengaturan HP (sekarang: ${systemIsDark() ? 'gelap' : 'terang'})` : pref === 'dark' ? 'Selalu memakai tema gelap' : 'Selalu memakai tema terang';
   const isGoogle = state.mode === 'google';
   return `
     <div class="top with-back"><button class="icon-btn" data-act="back" aria-label="Kembali">${svg('back')}</button><h1>Pengaturan</h1></div>
     <div class="acct">
       <span class="av">${esc(initials(state.user?.name || state.user?.email || 'ok'))}</span>
-      <div style="flex:1;min-width:0"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis">${esc(isGoogle ? (state.user?.email || 'Akun Google') : 'Mode lokal')}</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis">${esc(isGoogle ? (state.user?.email || 'Akun Google') : 'Data di HP ini')}</div>
         <div style="margin-top:4px"><span class="badge ${s.cls}">${esc(s.text)}</span></div></div>
     </div>
 
     <div class="group-t">TAMPILAN</div>
     <div class="list">
-      <div style="padding:6px 0 0"><div class="li" style="min-height:40px;padding-bottom:0"><span class="mid"><span class="ttl">Tema</span></span></div>
+      <div><div class="li" style="min-height:40px;padding-bottom:0"><span class="mid"><span class="ttl">Tema</span></span></div>
         <div class="themes">${[['system', 'Sistem'], ['light', 'Terang'], ['dark', 'Gelap']].map(([k, l]) => `<button class="theme-opt ${pref === k ? 'on' : ''}" data-theme-opt="${k}" aria-pressed="${pref === k}"><span class="sw ${k}"></span>${l}</button>`).join('')}</div>
-        <div class="theme-note">${note}</div></div>
-      <label class="li"><span class="mid"><span class="ttl">Sembunyikan nominal saat dibuka</span><span class="meta" style="display:block">Mode privasi menyala setiap aplikasi dibuka</span></span>
+        </div>
+      <label class="li"><span class="mid"><span class="ttl">Sembunyikan nominal saat dibuka</span></span>
         <span class="switch"><input type="checkbox" data-act="privOnOpen" ${privOnOpen ? 'checked' : ''} aria-label="Sembunyikan nominal saat dibuka"><i></i></span></label>
     </div>
 
     <div class="group-t">DATA</div>
     <div class="list">
       ${isGoogle ? `<button class="li" data-act="sync">${svg('sync')}<span class="mid"><span class="ttl">Sinkron sekarang</span><span class="meta" style="display:block">${esc(lastSyncText())}</span></span></button>
-      <a class="li" href="https://docs.google.com/spreadsheets/d/${esc(state.spreadsheetId || '')}" target="_blank" rel="noopener">${svg('sheet')}<span class="mid"><span class="ttl">Buka di Google Sheets</span><span class="meta" style="display:block">okane – Data</span></span>${svg('chevronRight', 18)}</a>` : ''}
+      <a class="li" href="https://docs.google.com/spreadsheets/d/${esc(state.spreadsheetId || '')}" target="_blank" rel="noopener">${svg('sheet')}<span class="mid"><span class="ttl">Buka di Google Sheets</span></span>${svg('chevronRight', 18)}</a>` : ''}
       <a class="li" href="#/pengaturan/kategori">${svg('tag')}<span class="mid"><span class="ttl">Kategori & ikon</span></span>${svg('chevronRight', 18)}</a>
-      <button class="li" data-act="csv">${svg('download')}<span class="mid"><span class="ttl">Ekspor CSV</span><span class="meta" style="display:block">Semua transaksi</span></span></button>
+      <button class="li" data-act="csv">${svg('download')}<span class="mid"><span class="ttl">Ekspor CSV</span></span></button>
     </div>
 
-    <div class="pad" style="margin-top:22px"><button class="btn big ghost" data-act="logout" style="color:var(--expense)">${svg('logout', 18)} Keluar</button></div>
+    <div class="pad" style="margin-top:22px"><button class="btn big" data-act="logout" style="color:var(--expense)">${svg('logout', 18)} Keluar</button></div>
     <div class="version">okane v${esc(APP_VERSION)}</div>`;
 }
 
@@ -73,7 +72,6 @@ function openKatEditor(nama) {
     body: `<form id="kf" class="stack">
       <div style="display:flex;gap:12px;align-items:center"><span id="kprev">${tile(k.ikon, k.warna, 'lg')}</span>
         <label class="field" style="flex:1"><span>Nama</span><input class="input" name="nama" value="${esc(k.nama)}" ${existing ? 'readonly' : 'autofocus'} required></label></div>
-      ${existing ? '<p class="muted" style="font-size:12.5px;margin-top:6px">Nama kategori tidak bisa diubah supaya riwayat tetap cocok.</p>' : ''}
       <div><div class="label">Ikon</div><div id="pick">${picker()}</div></div>
       <button class="btn primary big" type="submit">Simpan</button>
       ${existing ? '<button class="btn danger-text big" type="button" data-act="arch">Arsipkan kategori</button>' : ''}</form>`,

@@ -82,7 +82,6 @@ function render() {
         <div class="card" style="display:flex;gap:12px;align-items:center">${catTile('penyesuaian')}
           <div style="flex:1"><b>${esc(accName(t.akun))}</b><div class="muted" style="font-size:13px">${esc(t.tanggal)} · ${esc(t.jam)}</div></div>
           <b class="num">${rupiah(t.nominal, { sign: true })}</b></div>
-        <p class="muted" style="font-size:13px">Penyesuaian dibuat dari "Sesuaikan saldo". Hapus kalau keliru, lalu sesuaikan lagi.</p>
         <button class="btn danger-text big" data-act="delete">${svg('trash', 18)} Hapus</button>
       </div></div>`;
   }
@@ -103,12 +102,12 @@ function render() {
         <div><div class="label">Dari rekening</div><div class="chips scroll" id="from">${accChips(f.akun, 'from')}</div></div>
         <div class="swap-row"><button type="button" class="icon-btn" data-act="swap" aria-label="Tukar rekening" style="background:var(--surface);box-shadow:var(--shadow)">${svg('swap')}</button></div>
         <div><div class="label">Ke rekening</div><div class="chips scroll" id="to">${accChips(f.akunTujuan, 'to')}</div></div>
-        <label class="field"><span>Biaya admin (opsional)</span>
+        <label class="field"><span>Biaya admin</span>
           <div class="money"><input id="fee" class="input num" inputmode="numeric" autocomplete="off" placeholder="0" value="${f.biaya ? group(f.biaya) : ''}"></div></label>
-        <label class="field"><span>Catatan</span><input id="note" class="input" autocomplete="off" placeholder="Opsional" value="${esc(f.catatan)}"></label>
+        <label class="field"><span>Catatan</span><input id="note" class="input" autocomplete="off" placeholder="—" value="${esc(f.catatan)}"></label>
       ` : `
         <div><label class="field"><span>Catatan</span>
-          <input id="note" class="input" autocomplete="off" placeholder="${f.tipe === 'keluar' ? 'Contoh: Nasi padang' : 'Contoh: Gaji November'}" value="${esc(f.catatan)}"></label>
+          <input id="note" class="input" autocomplete="off" placeholder="${f.tipe === 'keluar' ? 'Nasi padang, bensin…' : 'Gaji, bonus…'}" value="${esc(f.catatan)}"></label>
           <div class="chips scroll sugg" id="sugg">${suggHTML()}</div></div>
         <div><div class="label-row"><span class="label">Kategori</span><span class="auto-badge" id="badge">${esc(guessLabel(f.sel.auto))}</span></div>
           <div class="cat-grid" id="cats">${catsHTML()}</div></div>
@@ -116,10 +115,8 @@ function render() {
       `}
       <div class="card" style="padding:4px 14px"><label class="inline-field"><span>Tanggal</span>
         <input id="when" type="datetime-local" value="${esc(f.tanggal)}T${esc(f.jam)}"></label></div>
-      ${f.tagihan_id ? `<p class="muted" style="font-size:13px">Pembayaran tagihan periode ${esc(f.periode)}</p>` : ''}
     </div>
-    <div class="save-bar"><button class="btn primary big" data-act="save">Simpan</button>
-      <p>${state.mode === 'local' ? 'Tersimpan di HP (mode lokal)' : 'Tersimpan di HP dulu, otomatis sinkron ke Google Sheets saat online'}</p></div>
+    <div class="save-bar"><button class="btn primary big" data-act="save">Simpan</button></div>
   </div>`;
 }
 
