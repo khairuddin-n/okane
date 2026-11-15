@@ -13,7 +13,12 @@ import rekening from './screens/rekening.js';
 import aturRekening from './screens/atur-rekening.js';
 import laporan from './screens/laporan.js';
 import pengaturan from './screens/pengaturan.js';
-import onboarding from './screens/onboarding.js';
+import onboarding, { onboardingState } from './screens/onboarding.js';
+import * as auth from './auth.js';
+import * as sync from './sync.js';
+import * as drive from './drive.js';
+import { esc } from './format.js';
+import { toast, confirmSheet } from './ui.js';
 
 const ROUTES = [
   [/^beranda$/, beranda, 'beranda'],
@@ -57,8 +62,77 @@ const ctx = () => ({
   canLocal: () => !GOOGLE_CLIENT_ID || ['localhost', '127.0.0.1'].includes(location.hostname) || /[?&]dev=1/.test(location.search),
 });
 
-// Hook yang diisi milestone berikutnya (sync, auth)
 export const app = {};
+const banner = document.getElementById('banner');
+
+function renderBanner() {
+  const show = state.mode === 'google' && state.needsAuth && navigator.onLine;
+  banner.innerHTML = show ? `<div class="banner" role="status"><span>${state.pending ? `${state.pending} perubahan menunggu. ` : ''}Sambungkan lagi ke Google untuk sinkron.</span><button type="button">Sambungkan</button></div>` : '';
+  if (show) banner.querySelector('button').onclick = () => reconnect();
+}
+
+// Minta token (harus dari klik), lalu sinkron
+function reconnect({ quiet = false } = {}) {
+  return auth.request({ prompt: '' })
+    .then(() => { state.needsAuth = false; return sync.syncAll(); })
+    .catch(e => {
+      state.needsAuth = !auth.getToken();
+      store.emit();
+      if (!quiet && e?.code !== 'popup_closed') toast(e?.code === 'popup_failed_to_open' ? 'Popup diblokir browser. Izinkan popup untuk situs ini.' : 'Belum tersambung ke Google');
+    });
+}
+
+// Dipanggil di awal aksi pengguna (Simpan, dll.): perpanjang token diam-diam kalau perlu
+app.userAction = () => {
+  if (state.mode !== 'google' || !navigator.onLine || !auth.ready()) return;
+  if (auth.getToken()) return;
+  reconnect({ quiet: true });
+};
+
+app.syncNow = () => {
+  if (state.mode !== 'google') return;
+  if (!navigator.onLine) { toast('Sedang offline. Perubahan menunggu di HP.'); return; }
+  if (!auth.getToken()) { reconnect(); return; }
+  sync.syncAll().then(() => toast('Tersinkron')).catch(() => toast('Gagal sinkron, coba lagi nanti'));
+};
+
+app.loginGoogle = () => {
+  const p = auth.request({ prompt: 'consent' }); // langsung di dalam klik
+  onboardingState.setBusy('Menghubungkan ke Google…'); render();
+  (async () => {
+    await p;
+    onboardingState.setBusy('Menyiapkan spreadsheet…'); render();
+    const user = await drive.aboutUser();
+    const { id } = await drive.findOrCreate();
+    if (state.spreadsheetId && state.spreadsheetId !== id) await store.resetAll();
+    await store.setApp({ mode: 'google', user, spreadsheetId: id, needsAuth: false });
+    try { localStorage.setItem('okane_hint', user.email); } catch {}
+    onboardingState.setBusy('Mengambil data…'); render();
+    await sync.pull();
+    await store.runAutomations();
+    await sync.flush();
+    onboardingState.toAccounts();
+    route();
+  })().catch(e => {
+    console.warn(e);
+    const msg = e?.code === 'popup_closed' ? 'Login dibatalkan.'
+      : e?.code === 'popup_failed_to_open' ? 'Popup login diblokir. Izinkan popup untuk situs ini lalu coba lagi.'
+      : e?.message || 'Gagal masuk. Coba lagi.';
+    onboardingState.setError(msg); render();
+  });
+};
+
+app.logout = async () => {
+  const google = state.mode === 'google';
+  const text = state.pending
+    ? `Ada ${state.pending} perubahan yang belum tersinkron dan akan hilang. Tetap keluar?`
+    : google ? 'Data di HP ini dihapus. Data di Google Sheets tetap aman dan bisa dibuka lagi saat masuk.' : 'Semua data mode lokal di HP ini akan dihapus.';
+  if (!await confirmSheet({ title: 'Keluar dari okane?', text, ok: 'Keluar', danger: true })) return;
+  if (google) await auth.revoke();
+  await store.resetAll();
+  try { localStorage.removeItem('okane_hint'); localStorage.removeItem('privacy'); } catch {}
+  go('#/onboarding', { replace: true });
+};
 
 function render() {
   if (!current) return;
@@ -72,6 +146,7 @@ function render() {
     if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(keep.s, keep.e); } catch {} }
   }
   renderNav();
+  renderBanner();
 }
 
 function route() {
@@ -106,14 +181,24 @@ function renderNav() {
     : `<a href="#/catat" class="fab-wrap" aria-label="Catat transaksi"><span class="fab">${svg('plus', 28)}</span></a>`).join('')}</div>`;
 }
 
-store.subscribe(() => { if (current?.screen.live) render(); else renderNav(); });
+store.subscribe(() => { if (current?.screen.live) render(); else { renderNav(); renderBanner(); } });
 onThemeChange(() => { if (current?.screen.live) render(); });
 window.addEventListener('hashchange', route);
 
 async function boot() {
   applyTheme();
   try { await store.init(); } catch (e) { console.error(e); view.innerHTML = '<p class="empty">Penyimpanan HP tidak tersedia. Coba buka di browser biasa (bukan mode samaran).</p>'; return; }
+  if (state.mode === 'google') { state.needsAuth = true; }
   route();
+  // jalankan admin otomatis dari cache (idempoten), lalu siapkan login Google
+  if (state.mode && state.lastSync || state.mode === 'local') store.runAutomations().catch(console.warn);
+  auth.init().catch(e => console.warn('[auth]', e.message));
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.mode === 'google' && auth.getToken()) sync.syncAll().catch(() => {});
+});
+window.addEventListener('online', () => { store.emit(); if (auth.getToken()) sync.syncAll().catch(() => {}); });
+window.addEventListener('offline', () => store.emit());
 
 boot();

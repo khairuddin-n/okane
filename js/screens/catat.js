@@ -134,6 +134,7 @@ export default {
     $('[data-act="close"]').onclick = () => ctx.back();
     const del = $('[data-act="delete"]');
     if (del) del.onclick = async () => {
+      ctx.userAction?.();
       if (!await confirmSheet({ title: 'Hapus transaksi?', text: 'Transaksi ini akan dihapus dari catatan dan Google Sheets.', ok: 'Hapus', danger: true })) return;
       await deleteTx(f.id);
       toast('Transaksi dihapus');
@@ -217,6 +218,7 @@ export default {
     });
 
     $('[data-act="save"]').onclick = async () => {
+      ctx.userAction?.();
       if (!(f.nominal > 0)) { toast('Isi nominal dulu'); amt.focus(); return; }
       if (!f.akun || !findAccount(f.akun)) { toast('Pilih rekening dulu'); return; }
       if (f.tipe === 'transfer') {
@@ -231,7 +233,6 @@ export default {
         diubah: nowISO(),
       };
       await saveTx(tx);
-      ctx.userAction?.();
       toast('Tersimpan');
       ctx.back();
     };

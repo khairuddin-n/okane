@@ -98,3 +98,16 @@ export async function outboxCount() {
   const db = await open();
   return result(db.transaction('outbox').objectStore('outbox').count());
 }
+
+// Hapus operasi hanya kalau isinya belum berubah sejak dikirim (hindari kehilangan edit baru).
+export async function outboxDeleteIfSame(seq, row) {
+  const db = await open();
+  const t = db.transaction('outbox', 'readwrite');
+  const os = t.objectStore('outbox');
+  const sent = JSON.stringify(row);
+  os.get(seq).onsuccess = e => {
+    const cur = e.target.result;
+    if (cur && JSON.stringify(cur.row) === sent) os.delete(seq);
+  };
+  return done(t);
+}

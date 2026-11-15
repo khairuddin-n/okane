@@ -82,6 +82,7 @@ export default {
 
     $('#form').onsubmit = async e => {
       e.preventDefault();
+      ctx.userAction?.();
       readForm();
       if (!f.nama) { toast('Isi nama rekening'); return; }
       if (f.adminOn && !(f.admin_nominal > 0)) { toast('Isi nominal biaya admin'); return; }
@@ -103,7 +104,6 @@ export default {
         const past = dueAdminCharges([saved], state.transaksi, todayISO()).map(t => ({ ...t, dihapus: true, catatan: 'Biaya admin (sebelum diaktifkan)', dibuat: nowISO(), diubah: nowISO() }));
         if (past.length) await putMany('transaksi', past);
       }
-      ctx.userAction?.();
       toast(f.isNew ? 'Rekening ditambahkan' : 'Tersimpan');
       ctx.back();
     };
