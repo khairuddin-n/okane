@@ -47,7 +47,7 @@
   --c-langit-t: #1C2742; --c-langit-i: #8DB7FF;
   --c-kuning-t: #3A3016; --c-kuning-i: #F4C26B;
   --c-hijau-t: #16332A;  --c-hijau-i: #4ADE9F;
-  --c-teal-t: #16332A;   --c-teal-i: #4ADE9F;
+  --c-teal-t: #123331;   --c-teal-i: #5EEAD4;
   --c-ungu-t: #2A1F3D;   --c-ungu-i: #C4B5FD;
   --c-violet-t: #2A1F3D; --c-violet-i: #C4B5FD;
   --c-pink-t: #3A1C24;   --c-pink-i: #FDA4AF;
@@ -378,3 +378,4 @@ body.no-nav #toast { bottom: auto; top: calc(12px + env(safe-area-inset-top)); }
 .tile.k-bank { background: var(--acc-bank); color: var(--acc-text); }
 .tile.k-ewallet { background: var(--acc-ewallet); color: var(--acc-text); }
 .tile.k-tunai { background: var(--acc-tunai); color: var(--acc-text); }
+body:has(.sheet-wrap) #toast { bottom: auto; top: calc(12px + env(safe-area-inset-top)); }
