@@ -195,6 +195,23 @@ async function boot() {
   auth.init().catch(e => console.warn('[auth]', e.message));
 }
 
+// Service worker + notifikasi versi baru
+function registerSW() {
+  if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+  let requested = false;
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
+    const notify = w => toast('Versi baru tersedia', { action: 'Muat ulang', ms: 0, onAction: () => { requested = true; w.postMessage('skipWaiting'); } });
+    if (reg.waiting && navigator.serviceWorker.controller) notify(reg.waiting);
+    reg.addEventListener('updatefound', () => {
+      const w = reg.installing;
+      w?.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) notify(w); });
+    });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+  }).catch(e => console.warn('[sw]', e));
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (requested) location.reload(); });
+}
+registerSW();
+
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.mode === 'google' && auth.getToken()) sync.syncAll().catch(() => {});
 });
