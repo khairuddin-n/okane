@@ -287,6 +287,7 @@ export const adminId = (accId, month) => `admin-${accId}-${month}`;
 /**
  * Transaksi admin yang sudah jatuh tempo tapi belum tercatat (termasuk catch-up bulan terlewat).
  * Potongan dihitung untuk tanggal setelah rekening dibuat, sampai hari ini.
+ * Saldo pada tanggal potong ≤ 0 → tidak dipotong; saldo kurang dari biaya → dipotong sebesar sisa saldo.
  * id deterministik `admin-<rekeningId>-<YYYY-MM>` → idempoten.
  */
 export function dueAdminCharges(rekening, transaksi, today) {
@@ -296,16 +297,21 @@ export function dueAdminCharges(rekening, transaksi, today) {
   for (const r of rekening) {
     if (!hasAdmin(r)) continue;
     const created = createdDate(r, today);
+    const added = [];
     for (let m = ym(created); m <= end; m = addMonths(m, 1)) {
       const d = adminDate(r.admin_jadwal, m);
       if (!d || d <= created || d > today) continue;
       const id = adminId(r.id, m);
       if (ids.has(id)) continue;
-      out.push({
-        id, tanggal: d, jam: '00:00', tipe: 'keluar', nominal: num(r.admin_nominal),
+      const upto = transaksi.filter(t => alive(t) && String(t.tanggal) <= d).concat(added);
+      const saldo = balances([r], upto).get(r.id);
+      if (saldo <= 0) continue;
+      const tx = {
+        id, tanggal: d, jam: '00:00', tipe: 'keluar', nominal: Math.min(num(r.admin_nominal), saldo),
         kategori: r.admin_kategori || ADMIN_CATEGORY, akun: r.id, akun_tujuan: '', biaya_admin: 0,
         catatan: 'Biaya admin bulanan', tagihan_id: '', periode: m, sumber: 'otomatis', dihapus: false,
-      });
+      };
+      added.push(tx); out.push(tx);
     }
   }
   return out;

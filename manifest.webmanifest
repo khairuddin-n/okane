@@ -13,5 +13,10 @@
     { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "./icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Catat pengeluaran", "short_name": "Pengeluaran", "url": "./#/catat?tipe=keluar", "icons": [{ "src": "./icons/sc-keluar.png", "sizes": "96x96", "type": "image/png" }] },
+    { "name": "Catat pemasukan", "short_name": "Pemasukan", "url": "./#/catat?tipe=masuk", "icons": [{ "src": "./icons/sc-masuk.png", "sizes": "96x96", "type": "image/png" }] },
+    { "name": "Transfer", "short_name": "Transfer", "url": "./#/catat?tipe=transfer", "icons": [{ "src": "./icons/sc-transfer.png", "sizes": "96x96", "type": "image/png" }] }
   ]
 }

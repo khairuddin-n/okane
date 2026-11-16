@@ -6,6 +6,7 @@ const FONT_CACHE = 'okane-fonts-v1';
 const SHELL = [
   './', './index.html', './version.js', './config.js', './manifest.webmanifest', './css/app.css',
   './icons/logo.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png',
+  './icons/sc-keluar.png', './icons/sc-masuk.png', './icons/sc-transfer.png',
   './js/app.js', './js/auth.js', './js/category-keywords.js', './js/dates.js', './js/db.js', './js/drive.js', './js/format.js',
   './js/icons.js', './js/model.js', './js/schema.js', './js/sheets.js', './js/store.js', './js/sync.js', './js/theme.js', './js/ui.js',
   './js/screens/atur-rekening.js', './js/screens/beranda.js', './js/screens/catat.js', './js/screens/laporan.js',

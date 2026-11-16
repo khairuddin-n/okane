@@ -179,7 +179,7 @@ describe('tagihan', () => {
 });
 
 describe('admin otomatis', () => {
-  const bni = acc({ id: 'bni', admin_nominal: 12_500, admin_jadwal: 'tgl:25', admin_kategori: 'Biaya bank', dibuat: '2026-08-10T09:00:00+07:00' });
+  const bni = acc({ id: 'bni', saldo_awal: 1_000_000, admin_nominal: 12_500, admin_jadwal: 'tgl:25', admin_kategori: 'Biaya bank', dibuat: '2026-08-10T09:00:00+07:00' });
   test('catch-up beberapa bulan yang terlewat', () => {
     const due = M.dueAdminCharges([bni], [], '2026-11-15');
     assert.deepEqual(due.map(t => t.id), ['admin-bni-2026-08', 'admin-bni-2026-09', 'admin-bni-2026-10']);
@@ -198,15 +198,24 @@ describe('admin otomatis', () => {
     assert.equal(M.dueAdminCharges([bni], deleted, '2026-11-15').length, 2);
   });
   test('akhir bulan di Februari (tahun biasa & kabisat)', () => {
-    const r = acc({ id: 'x', admin_nominal: 5_000, admin_jadwal: 'akhir', dibuat: '2027-01-15T08:00:00+07:00' });
+    const r = acc({ id: 'x', saldo_awal: 100_000, admin_nominal: 5_000, admin_jadwal: 'akhir', dibuat: '2027-01-15T08:00:00+07:00' });
     assert.deepEqual(M.dueAdminCharges([r], [], '2027-03-01').map(t => t.tanggal), ['2027-01-31', '2027-02-28']);
-    const k = acc({ id: 'y', admin_nominal: 5_000, admin_jadwal: 'akhir', dibuat: '2028-02-01T08:00:00+07:00' });
+    const k = acc({ id: 'y', saldo_awal: 100_000, admin_nominal: 5_000, admin_jadwal: 'akhir', dibuat: '2028-02-01T08:00:00+07:00' });
     assert.deepEqual(M.dueAdminCharges([k], [], '2028-02-29').map(t => t.tanggal), ['2028-02-29']);
   });
   test('tidak memotong sebelum/saat hari rekening dibuat; rekening arsip dilewati', () => {
     const r = acc({ id: 'z', admin_nominal: 1, admin_jadwal: 'tgl:25', dibuat: '2026-11-25T10:00:00+07:00' });
     assert.equal(M.dueAdminCharges([r], [], '2026-11-30').length, 0);
     assert.equal(M.dueAdminCharges([{ ...bni, arsip: true }], [], '2026-11-30').length, 0);
+  });
+  test('saldo 0 tidak dipotong; saldo kurang dipotong sisa saldo', () => {
+    const nol = { ...bni, saldo_awal: 0 };
+    assert.equal(M.dueAdminCharges([nol], [], '2026-11-15').length, 0);
+    const sedikit = { ...bni, saldo_awal: 20_000 };
+    assert.deepEqual(M.dueAdminCharges([sedikit], [], '2026-11-15').map(t => t.nominal), [12_500, 7_500]);
+    // setoran setelah tanggal potong tidak ikut dihitung untuk bulan itu
+    const setor = [tx({ tipe: 'masuk', akun: 'bni', nominal: 50_000, tanggal: '2026-10-01' })];
+    assert.deepEqual(M.dueAdminCharges([nol], setor, '2026-11-15').map(t => t.periode), ['2026-10']);
   });
   test('nextAdminCharge', () => {
     assert.equal(M.nextAdminCharge(bni, '2026-11-15').tanggal, '2026-11-25');
