@@ -63,8 +63,11 @@ export async function ensureStructure(id) {
 }
 
 // Migrasi berdasarkan schema_version. Tambah kolom/sheet tanpa menghapus data lama.
+// v2 (Berulang, kolom berulang_id) dan v3 (Piutang, Target, kolom tenor & cicilan_mulai) murni penambahan
+// sheet/kolom di akhir, dan itu sudah dikerjakan ensureStructure di atas. Di sini cukup menaikkan nomor versi.
 const MIGRATIONS = {
-  // 2: async id => { ... ; return 2 }
+  2: async () => {},
+  3: async () => {},
 };
 async function migrate(id, from) {
   let v = from;

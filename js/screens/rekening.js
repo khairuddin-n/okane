@@ -1,13 +1,15 @@
 import { svg } from '../icons.js';
-import { esc, rupiah, fmtDayMonth, monthShort } from '../format.js';
+import { esc, rupiah, fmtDayMonth, monthShort, initials, dayHeader } from '../format.js';
 import { todayISO, ym, diffDays, dayOf } from '../dates.js';
-import { balances, activeAccounts, byNewest, nextAdminCharge, billsForMonth, unpaidTotal, num } from '../model.js';
-import { txRow, JENIS, openSheet, toast, moneyInput, bindMoney, catTile, confirmSheet, money } from '../ui.js';
-import { state, saveTx, saveBill } from '../store.js';
+import { balances, activeAccounts, byNewest, nextAdminCharge, billsForMonth, unpaidTotal, num, openDebts, debtTotal, isInstallment } from '../model.js';
+import { txRow, JENIS, openSheet, toast, undoToast, moneyInput, bindMoney, catTile, confirmSheet, money, accChip } from '../ui.js';
+import { state, saveTx, saveBill, settleDebt, withUndo } from '../store.js';
+import { targetTab, bindTarget, openTargetSheet } from './target.js';
 
 let tab = 'saldo';
 let jenisF = 'all';
 let selected = null;
+const PIUTANG = '__piutang'; // kartu virtual di akhir carousel
 
 function visibleAccounts() {
   return activeAccounts(state.rekening).filter(r => jenisF === 'all' || r.jenis === jenisF);
@@ -21,12 +23,45 @@ function billMeta(b, today) {
 }
 const accLabel = id => state.rekening.find(r => r.id === id)?.nama || '—';
 
+function piutangDetail(debts, today) {
+  return `<div class="pad"><section class="card" style="padding:6px 16px"><div class="rows">${debts.map(p => `<div class="row">
+    <span class="tile c-violet" style="font-weight:800;font-size:13px">${esc(initials(p.nama))}</span>
+    <span class="mid"><span class="ttl">${esc(p.nama)}</span><span class="meta">${esc([p.catatan, dayHeader(p.tanggal, today).split(' · ')[0]].filter(Boolean).join(' · '))}</span></span>
+    <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><b class="num" style="font-size:14px">${rupiah(p.nominal)}</b>
+      <button class="btn primary sm" data-lunas="${esc(p.id)}">Lunas</button></span></div>`).join('')}</div></section></div>`;
+}
+
+function openSettle(p) {
+  const bal = balances(state.rekening, state.transaksi);
+  const accs = activeAccounts(state.rekening);
+  let akun = accs[0]?.id || '';
+  const chips = () => accs.map(r => accChip(r, r.id === akun, bal.get(r.id))).join('');
+  openSheet({
+    title: `${p.nama} · ${rupiah(p.nominal, { raw: true })}`,
+    body: `<div class="stack"><div><div class="label">Diterima di</div><div class="chips scroll" id="sacc">${chips()}</div></div>
+      <button class="btn primary big" data-ok>Lunas</button></div>`,
+    onMount(el, close) {
+      const bind = () => el.querySelectorAll('[data-acc]').forEach(b => { b.onclick = () => { akun = b.dataset.acc; el.querySelector('#sacc').innerHTML = chips(); bind(); }; });
+      bind();
+      el.querySelector('[data-ok]').onclick = async () => {
+        if (!akun) return;
+        close();
+        const undo = await withUndo(() => settleDebt(p.id, akun));
+        undoToast('Piutang lunas', undo);
+      };
+    },
+  });
+}
+
 function saldoTab(bal, today) {
   const accs = visibleAccounts();
-  if (!accs.find(r => r.id === selected)) selected = accs[0]?.id || null;
+  const debts = jenisF === 'all' ? openDebts(state.piutang, state.transaksi) : [];
+  if (selected === PIUTANG && !debts.length) selected = null;
+  if (selected !== PIUTANG && !accs.find(r => r.id === selected)) selected = accs[0]?.id || null;
   const r = accs.find(x => x.id === selected);
   let detail = '<p class="empty">Belum ada rekening.</p>';
-  if (r) {
+  if (selected === PIUTANG) detail = piutangDetail(debts, today);
+  else if (r) {
     const txs = state.transaksi.filter(t => !t.dihapus && (t.akun === r.id || t.akun_tujuan === r.id)).sort(byNewest).slice(0, 3);
     const next = nextAdminCharge(r, today);
     const sched = next ? `<div class="row sched">${catTile('keluar', r.admin_kategori || 'Biaya bank')}
@@ -50,9 +85,12 @@ function saldoTab(bal, today) {
       ${accs.map(a => `<button class="acc-card k-${esc(a.jenis)} ${a.id === selected ? 'on' : ''}" data-card="${esc(a.id)}">
         <span class="top-l"><span><span class="nm" style="display:block">${esc(a.nama)}</span><span class="ket">${esc(a.keterangan || '')}</span></span><span class="jn">${JENIS[a.jenis] || ''}</span></span>
         <span class="sl num">${money(bal.get(a.id))}</span></button>`).join('')}
+      ${debts.length ? `<button class="acc-card k-piutang ${selected === PIUTANG ? 'on' : ''}" data-card="${PIUTANG}">
+        <span class="top-l"><span><span class="nm" style="display:block">Piutang</span><span class="ket">Belum dikembalikan</span></span><span class="jn">${new Set(debts.map(p => String(p.nama).toLowerCase())).size} orang</span></span>
+        <span class="sl num">${money(debtTotal(debts))}</span></button>` : ''}
       ${accs.length ? '' : `<a class="acc-card on" href="#/rekening/atur/baru" style="background:var(--chip-bg);color:var(--text);align-items:center;justify-content:center;gap:8px;box-shadow:none">${svg('plus', 26)}<b>Tambah rekening</b></a>`}
     </div>
-    <div class="dots">${accs.map(a => `<i class="${a.id === selected ? 'on' : ''}"></i>`).join('')}</div>
+    <div class="dots">${[...accs.map(a => a.id), ...(debts.length ? [PIUTANG] : [])].map(id => `<i class="${id === selected ? 'on' : ''}"></i>`).join('')}</div>
     ${detail}`;
 }
 
@@ -74,7 +112,7 @@ function tagihanTab(total, today) {
         const soon = !b.lunas && diffDays(today, b.due) <= 7;
         return `<div class="row">
           <button class="bill-date ${b.lunas ? 'paid' : soon ? 'soon' : ''}" data-bill="${esc(b.id)}" aria-label="Ubah tagihan ${esc(b.nama)}"><b>${dayOf(b.due)}</b><small>${monthShort(m)}</small></button>
-          <button class="mid" data-bill="${esc(b.id)}" style="text-align:left"><span class="ttl" style="display:block">${esc(b.nama)}</span><span class="meta" style="display:block">${billMeta(b, today)}</span></button>
+          <button class="mid" data-bill="${esc(b.id)}" style="text-align:left"><span class="ttl" style="display:block">${esc(b.nama)}</span><span class="meta" style="display:block">${billMeta(b, today)}</span>${b.cicilan ? `<span class="inst"><span class="bar thin"><i style="width:${Math.min(100, (b.cicilan.paid / b.cicilan.tenor) * 100)}%"></i></span><small>Cicilan ${Math.min(b.cicilan.tenor, b.cicilan.paid + (b.lunas ? 0 : 1))} dari ${b.cicilan.tenor}</small></span>` : ''}</button>
           <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><b class="num" style="font-size:14px">${rupiah(b.nominal)}</b>
           ${b.lunas ? `<span class="paid-tag">${svg('check', 14)}Lunas</span>` : `<a class="btn primary sm" href="#/catat?tagihan=${esc(b.id)}&periode=${m}">Bayar</a>`}</span>
         </div>`;
@@ -83,7 +121,11 @@ function tagihanTab(total, today) {
 }
 
 export function openBillSheet(id) {
-  const b = state.tagihan.find(x => x.id === id) || { nama: '', nominal: 0, tanggal: dayOf(todayISO()), akun: activeAccounts(state.rekening)[0]?.id || '', kategori: 'Tagihan', aktif: true };
+  const b = state.tagihan.find(x => x.id === id) || { nama: '', nominal: 0, tanggal: dayOf(todayISO()), akun: activeAccounts(state.rekening)[0]?.id || '', kategori: 'Tagihan', aktif: true, tenor: 0, cicilan_mulai: '' };
+  let cicil = isInstallment(b);
+  const cicilHTML = () => (cicil ? `<div class="row2">
+      <label class="field"><span>Tenor (bulan)</span><input class="input" name="tenor" type="number" min="1" max="600" inputmode="numeric" value="${num(b.tenor) || 12}"></label>
+      <label class="field"><span>Mulai</span><input class="input" name="cicilan_mulai" type="month" value="${esc(b.cicilan_mulai || ym(todayISO()))}"></label></div>` : '');
   const accs = activeAccounts(state.rekening);
   const kats = state.kategori.filter(k => k.tipe === 'keluar' && !k.arsip);
   openSheet({
@@ -96,17 +138,23 @@ export function openBillSheet(id) {
         <label class="field"><span>Kategori</span><select class="input" name="kategori">${kats.map(k => `<option ${k.nama === b.kategori ? 'selected' : ''}>${esc(k.nama)}</option>`).join('')}</select></label>
       </div>
       <label class="field"><span>Dibayar dari</span><select class="input" name="akun">${accs.map(r => `<option value="${esc(r.id)}" ${r.id === b.akun ? 'selected' : ''}>${esc(r.nama)}</option>`).join('')}</select></label>
+      <label class="inline-field" style="min-height:44px"><span>Ini cicilan</span>
+        <span class="switch"><input type="checkbox" name="cicil" ${cicil ? 'checked' : ''} aria-label="Ini cicilan"><i></i></span></label>
+      <div id="cicil">${cicilHTML()}</div>
       <button class="btn primary big" type="submit">Simpan</button>
       ${id ? '<button class="btn danger-text big" type="button" data-act="off">Hapus tagihan</button>' : ''}
     </form>`,
     onMount(el, close) {
       const money = bindMoney(el.querySelector('[name="nominal"]'));
+      el.querySelector('[name="cicil"]').onchange = e => { cicil = e.target.checked; el.querySelector('#cicil').innerHTML = cicilHTML(); };
       el.querySelector('#bf').onsubmit = async e => {
         e.preventDefault();
         const fd = new FormData(e.target);
         const nama = String(fd.get('nama')).trim();
         if (!nama || !(money.get() > 0)) { toast('Isi nama dan nominal'); return; }
-        await saveBill({ ...b, nama, nominal: money.get(), tanggal: Math.max(1, Math.min(31, Number(fd.get('tanggal')) || 1)), kategori: fd.get('kategori'), akun: fd.get('akun'), aktif: true });
+        const tenor = cicil ? Math.max(1, Math.min(600, Math.round(Number(fd.get('tenor')) || 0))) : 0;
+        const mulai = cicil && /^\d{4}-\d{2}$/.test(String(fd.get('cicilan_mulai') || '')) ? String(fd.get('cicilan_mulai')) : (cicil ? ym(todayISO()) : '');
+        await saveBill({ ...b, nama, nominal: money.get(), tanggal: Math.max(1, Math.min(31, Number(fd.get('tanggal')) || 1)), kategori: fd.get('kategori'), akun: fd.get('akun'), aktif: true, tenor, cicilan_mulai: mulai });
         close(); toast('Tagihan tersimpan');
       };
       const off = el.querySelector('[data-act="off"]');
@@ -146,7 +194,7 @@ export default {
   live: true,
   enter(query) {
     if (query.id) { selected = query.id; tab = 'saldo'; jenisF = 'all'; }
-    if (query.tab === 'tagihan') tab = 'tagihan';
+    if (query.tab === 'tagihan' || query.tab === 'target') tab = query.tab;
   },
   render({ state: s }) {
     const today = todayISO();
@@ -156,16 +204,18 @@ export default {
     const unpaidCount = billsForMonth(s.tagihan, s.transaksi, ym(today)).filter(b => !b.lunas).length;
     return `
       <div class="top"><div style="flex:1"><h1>Rekening</h1><div class="sub"><span class="num">Total ${rupiah(total)}</span> · ${accs.length} rekening</div></div>
-        <button class="icon-btn solid" data-act="add" aria-label="${tab === 'saldo' ? 'Tambah rekening' : 'Tambah tagihan'}">${svg('plus')}</button></div>
+        <button class="icon-btn solid" data-act="add" aria-label="${tab === 'saldo' ? 'Tambah rekening' : tab === 'tagihan' ? 'Tambah tagihan' : 'Target baru'}">${svg('plus')}</button></div>
       <div class="pad" style="margin:6px 0 12px"><div class="seg" role="tablist">
         <button role="tab" data-tab="saldo" class="${tab === 'saldo' ? 'on' : ''}" aria-selected="${tab === 'saldo'}">Saldo</button>
         <button role="tab" data-tab="tagihan" class="${tab === 'tagihan' ? 'on' : ''}" aria-selected="${tab === 'tagihan'}">Tagihan${unpaidCount ? ` · ${unpaidCount}` : ''}</button>
+        <button role="tab" data-tab="target" class="${tab === 'target' ? 'on' : ''}" aria-selected="${tab === 'target'}">Target</button>
       </div></div>
-      ${tab === 'saldo' ? saldoTab(bal, today) : tagihanTab(total, today)}`;
+      ${tab === 'saldo' ? saldoTab(bal, today) : tab === 'tagihan' ? tagihanTab(total, today) : targetTab(today)}`;
   },
   bind(root, { go, rerender }) {
     root.querySelectorAll('[data-tab]').forEach(b => { b.onclick = () => { tab = b.dataset.tab; rerender(); }; });
-    root.querySelector('[data-act="add"]').onclick = () => (tab === 'saldo' ? go('#/rekening/atur/baru') : openBillSheet(null));
+    root.querySelector('[data-act="add"]').onclick = () => (tab === 'saldo' ? go('#/rekening/atur/baru') : tab === 'tagihan' ? openBillSheet(null) : openTargetSheet(null));
+    if (tab === 'target') { bindTarget(root); return; }
     root.querySelectorAll('[data-bill]').forEach(b => { b.onclick = () => openBillSheet(b.dataset.bill); });
     root.querySelectorAll('[data-tx]').forEach(b => { b.onclick = () => go(`#/catat?id=${encodeURIComponent(b.dataset.tx)}`); });
     if (tab !== 'saldo') return;
@@ -187,6 +237,9 @@ export default {
     }, { passive: true });
     cards.forEach(c => { c.onclick = () => { if (c.dataset.card !== selected) { selected = c.dataset.card; rerender(); } }; });
 
+    root.querySelectorAll('[data-lunas]').forEach(b => {
+      b.onclick = () => { const p = state.piutang.find(x => x.id === b.dataset.lunas); if (p) openSettle(p); };
+    });
     const adj = root.querySelector('[data-act="adjust"]');
     if (adj) adj.onclick = () => {
       const r = state.rekening.find(x => x.id === selected);

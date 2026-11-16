@@ -2,7 +2,7 @@
 import { STORES } from './schema.js';
 
 const NAME = 'okane';
-const VERSION = 1;
+const VERSION = 2; // v2: store berulang, piutang, target
 let dbp = null;
 
 export function open() {
@@ -15,9 +15,13 @@ export function open() {
       if (!db.objectStoreNames.contains('outbox')) db.createObjectStore('outbox', { keyPath: 'seq', autoIncrement: true });
       if (!db.objectStoreNames.contains('app')) db.createObjectStore('app', { keyPath: 'k' });
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      // tab lain meminta versi lebih baru: lepas koneksi supaya upgrade-nya tidak tertahan
+      req.result.onversionchange = () => { req.result.close(); dbp = null; };
+      resolve(req.result);
+    };
     req.onerror = () => reject(req.error);
-    req.onblocked = () => reject(new Error('IndexedDB diblokir tab lain'));
+    // onblocked: tab lama masih terbuka; permintaan tetap menunggu sampai tab itu melepas koneksi
   });
   return dbp;
 }
@@ -51,6 +55,13 @@ export async function replaceAll(store, list) {
   const os = t.objectStore(store);
   os.clear();
   for (const o of list) os.put(o);
+  return done(t);
+}
+
+export async function del(store, key) {
+  const db = await open();
+  const t = db.transaction(store, 'readwrite');
+  t.objectStore(store).delete(key);
   return done(t);
 }
 
@@ -93,6 +104,18 @@ export async function outboxDelete(seq) {
   const t = db.transaction('outbox', 'readwrite');
   t.objectStore('outbox').delete(seq);
   return done(t);
+}
+// Buang operasi yang belum terkirim untuk sheet+key. Mengembalikan true kalau ada yang dibuang.
+export async function outboxTake(sheet, key) {
+  const db = await open();
+  const t = db.transaction('outbox', 'readwrite');
+  const os = t.objectStore('outbox');
+  let found = false;
+  os.getAll().onsuccess = e => {
+    for (const o of e.target.result) if (o.sheet === sheet && o.key === key) { found = true; os.delete(o.seq); }
+  };
+  await done(t);
+  return found;
 }
 export async function outboxCount() {
   const db = await open();

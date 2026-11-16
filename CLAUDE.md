@@ -589,3 +589,16 @@ Urutan bagian:
 6. Tombol **Keluar** dan versi aplikasi
 
 Setiap item hanya tampil kalau fasenya sudah dikerjakan.
+
+---
+
+## 14. Status v2.0 (rancangan menyimpang dari §3–§4 dan §13 atas permintaan pengguna)
+
+Pengguna meminta perombakan total di luar roadmap §13. Yang berlaku sekarang:
+
+- **Inti tidak berubah**: §1 (tanpa server, scope `drive.file`, tanpa build), §5–§7 (struktur Sheet, auth, sinkron), dan aturan saldo di §8.
+- **Struktur data** (`schema_version = 3`): sheet baru Berulang, Piutang, Target (masing-masing punya `dihapus`/`arsip`); kolom baru di ujung Transaksi (`berulang_id`) dan Tagihan (`tenor`, `cicilan_mulai`); tipe transaksi baru `pelunasan`. Penambahan dikerjakan `drive.ensureStructure`, dipicu `sync.ensureSchema()` sekali per versi (`schemaOk` di IndexedDB).
+- **Statistik selalu memakai `store.statTx()`** (talangan dihitung bagianmu saja); **saldo selalu memakai `state.transaksi`**.
+- **Sudah ada**: Batalkan (`store.withUndo`), transaksi berulang, talangan & piutang, target, cicilan, rekap, cek saldo mingguan, kunci PIN (`js/lock.js`), analitik (`balanceSeries`, `forecastMonth`, `upcoming`, dst. di model.js), kartu insight (`js/insights.js`), grafik (`js/charts.js`).
+- **Belum ada** (dari §13.3): impor CSV, foto struk, buku bersama.
+- **Desain**: token di awal `css/app.css`; lapisan komponen v2 di bagian akhir file. Font tampilan `--display` (Space Grotesk) untuk judul dan angka besar. Hero `.hero` dipakai Beranda dan Laporan.

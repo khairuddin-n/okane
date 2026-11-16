@@ -1,6 +1,6 @@
 // FUNGSI MURNI: saldo, budget, statistik, admin otomatis, tebak kategori.
 // Tidak boleh menyentuh DOM, IndexedDB, atau jaringan. Dites dengan `node --test`.
-import { ym, dayOf, daysInMonth, addMonths, addDays, dateIn, diffDays, pad } from './dates.js';
+import { ym, dayOf, daysInMonth, addMonths, addDays, dateIn, diffDays, pad, parseISO } from './dates.js';
 import { CATEGORY_KEYWORDS } from './category-keywords.js';
 
 export const ADMIN_CATEGORY = 'Biaya bank';
@@ -21,6 +21,7 @@ function applyTx(map, t) {
       add(t.akun_tujuan, n);
       break;
     case 'penyesuaian': add(t.akun, n); break;
+    case 'pelunasan': add(t.akun, n); break; // piutang dikembalikan: saldo naik, bukan pemasukan
   }
 }
 
@@ -260,11 +261,38 @@ export function guessLabel(g) {
 
 export const isActiveBill = b => b.aktif !== false && b.aktif !== 'FALSE';
 
+// ---------- Cicilan ----------
+
+export const isInstallment = b => num(b.tenor) > 0;
+const monthDiff = (a, b) => (Number(b.slice(0, 4)) - Number(a.slice(0, 4))) * 12 + (Number(b.slice(5, 7)) - Number(a.slice(5, 7)));
+
+/**
+ * Progres cicilan: { paid, tenor, done, start }. Dihitung dari periode yang sudah lunas.
+ * Periode sebelum tagihan dibuat di okane dianggap sudah dibayar (cicilan yang sudah berjalan).
+ */
+export function installmentInfo(b, transaksi) {
+  if (!isInstallment(b)) return null;
+  const tenor = Math.round(num(b.tenor));
+  const start = /^\d{4}-\d{2}$/.test(String(b.cicilan_mulai || '')) ? b.cicilan_mulai : '';
+  const paid = new Set();
+  for (const t of transaksi) if (alive(t) && t.tagihan_id === b.id && t.periode && (!start || t.periode >= start)) paid.add(t.periode);
+  let assumed = 0;
+  const created = ym(String(b.dibuat || ''));
+  if (start && /^\d{4}-\d{2}$/.test(created)) for (let m = start; m < created; m = addMonths(m, 1)) if (!paid.has(m)) assumed++;
+  const n = Math.min(tenor, paid.size + assumed);
+  return { paid: n, tenor, done: n >= tenor, start };
+}
+
 export function billsForMonth(tagihan, transaksi, month) {
   return tagihan.filter(isActiveBill).map(b => {
     const due = dateIn(month, num(b.tanggal) || 1);
     const pay = transaksi.find(t => alive(t) && t.tagihan_id === b.id && t.periode === month) || null;
-    return { ...b, due, lunas: !!pay, pembayaran: pay };
+    return { ...b, due, lunas: !!pay, pembayaran: pay, cicilan: installmentInfo(b, transaksi) };
+  }).filter(b => {
+    // cicilan: belum mulai → sembunyi; sudah lunas semua → otomatis tidak aktif (kecuali baru dibayar bulan ini)
+    if (!b.cicilan) return true;
+    if (b.cicilan.start && month < b.cicilan.start) return false;
+    return !b.cicilan.done || b.lunas;
   }).sort((a, b) => a.due.localeCompare(b.due) || String(a.nama).localeCompare(String(b.nama)));
 }
 
@@ -360,3 +388,352 @@ export function insights(transaksi, budget, month, today) {
 
 // Urutkan transaksi terbaru dulu
 export const byNewest = (a, b) => (b.tanggal + (b.jam || '')).localeCompare(a.tanggal + (a.jam || '')) || String(b.dibuat || '').localeCompare(String(a.dibuat || ''));
+
+// ---------- Transaksi berulang ----------
+
+// 'bulanan:N' | 'bulanan:akhir' | 'mingguan:1-7' (1 = Senin … 7 = Minggu)
+export function parseSchedule(jadwal) {
+  const s = String(jadwal || '');
+  if (s === 'bulanan:akhir') return { kind: 'bulanan', day: 31, akhir: true };
+  let m = /^bulanan:(\d{1,2})$/.exec(s);
+  if (m && Number(m[1]) >= 1 && Number(m[1]) <= 31) return { kind: 'bulanan', day: Number(m[1]), akhir: false };
+  m = /^mingguan:([1-7])$/.exec(s);
+  if (m) return { kind: 'mingguan', dow: Number(m[1]) };
+  return null;
+}
+
+const DOW = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+export function scheduleLabel(jadwal) {
+  const p = parseSchedule(jadwal);
+  if (!p) return '';
+  if (p.kind === 'mingguan') return `Tiap ${DOW[p.dow - 1]}`;
+  return p.akhir ? 'Tiap akhir bulan' : `Tiap tgl ${p.day}`;
+}
+
+// Jadwal dari sebuah tanggal: bulanan → tanggal itu, mingguan → hari itu
+export function scheduleFrom(kind, iso) {
+  if (kind === 'mingguan') return `mingguan:${((parseISO(iso).getDay() + 6) % 7) + 1}`;
+  return dayOf(iso) > 28 && dayOf(iso) >= daysInMonth(ym(iso)) ? 'bulanan:akhir' : `bulanan:${dayOf(iso)}`;
+}
+
+// Semua jatuh tempo di rentang [from, to]: { tanggal, periode }. Periode bulanan = YYYY-MM, mingguan = tanggalnya.
+export function occurrences(jadwal, from, to, max = 600) {
+  const p = parseSchedule(jadwal);
+  const out = [];
+  if (!p || !from || !to || from > to) return out;
+  if (p.kind === 'bulanan') {
+    for (let m = ym(from); m <= ym(to) && out.length < max; m = addMonths(m, 1)) {
+      const d = dateIn(m, p.day);
+      if (d >= from && d <= to) out.push({ tanggal: d, periode: m });
+    }
+    return out;
+  }
+  const shift = ((p.dow % 7) - parseISO(from).getDay() + 7) % 7;
+  for (let d = addDays(from, shift); d <= to && out.length < max; d = addDays(d, 7)) out.push({ tanggal: d, periode: d });
+  return out;
+}
+
+export const ruleTxId = (ruleId, periode) => `rule-${ruleId}-${periode}`;
+const ruleStart = (r, today) => String(r.mulai || r.dibuat || today).slice(0, 10);
+const validRule = r => !r.dihapus && isActiveBill(r) && parseSchedule(r.jadwal) && num(r.nominal) > 0 && r.akun && ['keluar', 'masuk', 'transfer'].includes(r.tipe);
+
+/**
+ * Transaksi berulang yang sudah jatuh tempo tapi belum tercatat (termasuk catch-up).
+ * Mekanisme sama dengan admin otomatis: id deterministik `rule-<id>-<periode>` → idempoten.
+ * Kalau `rekening` diberikan, aturan yang rekeningnya sudah diarsipkan/hilang dilewati.
+ */
+export function dueRecurring(berulang, transaksi, today, rekening) {
+  const ids = new Set(transaksi.map(t => t.id));
+  const okAcc = rekening ? new Set(rekening.filter(r => !r.arsip).map(r => r.id)) : null;
+  const out = [];
+  for (const r of berulang) {
+    if (!validRule(r)) continue;
+    const transfer = r.tipe === 'transfer';
+    if (transfer && (!r.akun_tujuan || r.akun_tujuan === r.akun)) continue;
+    if (okAcc && (!okAcc.has(r.akun) || (transfer && !okAcc.has(r.akun_tujuan)))) continue;
+    for (const o of occurrences(r.jadwal, ruleStart(r, today), today)) {
+      const id = ruleTxId(r.id, o.periode);
+      if (ids.has(id)) continue;
+      out.push({
+        id, tanggal: o.tanggal, jam: '00:00', tipe: r.tipe, nominal: num(r.nominal),
+        kategori: transfer ? '' : (r.kategori || 'Lainnya'), akun: r.akun, akun_tujuan: transfer ? r.akun_tujuan : '', biaya_admin: 0,
+        catatan: r.nama || '', tagihan_id: '', periode: o.periode, sumber: 'otomatis', dihapus: false, berulang_id: r.id,
+      });
+    }
+  }
+  return out;
+}
+
+// Jatuh tempo berikutnya (setelah hari ini)
+export function nextOccurrence(r, today) {
+  if (!validRule(r)) return null;
+  const start = ruleStart(r, today);
+  const from = start > today ? start : addDays(today, 1);
+  return occurrences(r.jadwal, from, addDays(from, 62), 1)[0] || null;
+}
+
+// ---------- Talangan & piutang ----------
+
+// Piutang yang masih berlaku (+ status lunas). Transaksi asal dihapus → piutang ikut gugur.
+// Lunas = punya transaksi pelunasan yang masih ada.
+export function liveDebts(piutang, transaksi) {
+  const byId = new Map(transaksi.map(t => [t.id, t]));
+  const out = [];
+  for (const p of piutang || []) {
+    if (!p || p.dihapus || num(p.nominal) <= 0) continue;
+    if (p.transaksi_id && !alive(byId.get(p.transaksi_id))) continue;
+    const pay = p.lunas_transaksi_id ? byId.get(p.lunas_transaksi_id) : null;
+    out.push({ ...p, lunas: !!alive(pay) });
+  }
+  return out;
+}
+export const openDebts = (piutang, transaksi) => liveDebts(piutang, transaksi).filter(p => !p.lunas)
+  .sort((a, b) => String(b.tanggal).localeCompare(String(a.tanggal)) || String(a.nama).localeCompare(String(b.nama)));
+export const debtTotal = list => list.reduce((s, p) => s + num(p.nominal), 0);
+
+/**
+ * Transaksi untuk STATISTIK: pengeluaran yang ditalangi hanya dihitung bagianmu
+ * (nominal − total piutang transaksi itu). Saldo tetap memakai transaksi asli.
+ */
+export function applyShares(transaksi, piutang) {
+  if (!piutang?.length) return transaksi;
+  const sum = new Map();
+  for (const p of liveDebts(piutang, transaksi)) if (p.transaksi_id) sum.set(p.transaksi_id, (sum.get(p.transaksi_id) || 0) + num(p.nominal));
+  if (!sum.size) return transaksi;
+  return transaksi.map(t => (t.tipe === 'keluar' && sum.has(t.id) ? { ...t, nominal: Math.max(0, num(t.nominal) - sum.get(t.id)) } : t));
+}
+
+// Nama orang yang pernah dipakai (paling sering dulu)
+export function debtNames(piutang) {
+  const map = new Map();
+  for (const p of piutang || []) {
+    const n = String(p?.nama || '').trim();
+    if (!n || p.dihapus) continue;
+    const k = n.toLowerCase();
+    const c = map.get(k) || { nama: n, n: 0, last: '' };
+    c.n++; if (String(p.tanggal) >= c.last) { c.last = String(p.tanggal); c.nama = n; }
+    map.set(k, c);
+  }
+  return [...map.values()].sort((a, b) => b.n - a.n || b.last.localeCompare(a.last)).map(c => c.nama);
+}
+
+// Bagi rata antara kamu + n orang: bagian tiap orang (dibulatkan ke bawah, sisanya jadi bagianmu)
+export const splitEven = (total, people) => (people > 0 ? Math.floor(num(total) / (people + 1)) : 0);
+
+// ---------- Target tabungan ----------
+
+export function targetProgress(t, rekening, transaksi) {
+  const goal = num(t.target_nominal);
+  const linked = !!t.rekening_id && rekening.some(r => r.id === t.rekening_id);
+  const terkumpul = linked ? Math.max(0, balanceOf(t.rekening_id, rekening, transaksi)) : Math.max(0, num(t.terkumpul_manual));
+  return { goal, terkumpul, linked, kurang: Math.max(0, goal - terkumpul), pct: goal > 0 ? terkumpul / goal : 0, done: goal > 0 && terkumpul >= goal };
+}
+
+/**
+ * Perkiraan target:
+ *  - ada target_tanggal → { kind:'tenggat', kurang, perBulan, bulan } (atau kind:'lewat');
+ *  - terhubung rekening tanpa tanggal → rata-rata kenaikan 3 bulan penuh terakhir → { kind:'eta', bulan, perBulan };
+ *  - data belum cukup / tidak naik → null.
+ */
+export function targetForecast(t, rekening, transaksi, today) {
+  const p = targetProgress(t, rekening, transaksi);
+  if (p.goal <= 0 || p.done) return null;
+  const cur = ym(today);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(t.target_tanggal || ''))) {
+    if (t.target_tanggal < today) return { kind: 'lewat', kurang: p.kurang };
+    const months = Math.max(1, monthDiff(cur, ym(t.target_tanggal)));
+    return { kind: 'tenggat', kurang: p.kurang, perBulan: Math.ceil(p.kurang / months), bulan: ym(t.target_tanggal) };
+  }
+  if (!p.linked) return null;
+  const r = rekening.find(x => x.id === t.rekening_id);
+  const mine = transaksi.filter(x => alive(x) && (x.akun === r.id || x.akun_tujuan === r.id));
+  const first = [String(r.dibuat || '').slice(0, 10), ...mine.map(x => String(x.tanggal))].filter(Boolean).sort()[0];
+  if (!first || first > `${addMonths(cur, -3)}-01`) return null; // belum punya 3 bulan penuh
+  const at = m => balances([r], mine.filter(x => x.tanggal <= monthRange(m)[1])).get(r.id);
+  const rise = (at(addMonths(cur, -1)) - at(addMonths(cur, -4))) / 3;
+  if (!(rise > 0)) return null;
+  return { kind: 'eta', perBulan: Math.round(rise), bulan: addMonths(cur, Math.ceil(p.kurang / rise)) };
+}
+
+// ---------- Rekap bulanan & arus kas ----------
+
+export function recap(transaksi, month) {
+  const masuk = incomeInMonth(transaksi, month);
+  const by = spentByCategory(transaksi, month);
+  const keluar = Object.values(by).reduce((s, v) => s + v, 0);
+  const top = Object.entries(by).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .map(([kategori, total]) => ({ kategori, total, share: keluar ? total / keluar : 0 }));
+  const prev = addMonths(month, -1);
+  const prevKeluar = spentInMonth(transaksi, prev);
+  const [from, to] = monthRange(month);
+  const count = transaksi.filter(t => alive(t) && t.tanggal >= from && t.tanggal <= to).length;
+  return {
+    month, prev, masuk, keluar, sisa: masuk - keluar, top, prevKeluar, count,
+    hemat: prevKeluar > 0 ? (prevKeluar - keluar) / prevKeluar : null, // > 0 = lebih hemat
+    tabung: masuk > 0 ? (masuk - keluar) / masuk : null,
+  };
+}
+
+// n bulan berakhir di endMonth (lama → baru): { month, masuk, keluar }
+export function cashflow(transaksi, endMonth, n = 6) {
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const m = addMonths(endMonth, -i);
+    out.push({ month: m, masuk: incomeInMonth(transaksi, m), keluar: spentInMonth(transaksi, m) });
+  }
+  return out;
+}
+
+// ---------- Cek saldo mingguan ----------
+
+// Sudah ≥ 7 hari sejak cek terakhir, dan tidak sedang ditunda.
+export function balanceCheckDue(last, today, snoozeUntil) {
+  if (snoozeUntil && today < snoozeUntil) return false;
+  const d = String(last || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  return diffDays(d, today) >= 7;
+}
+
+// ====================== Analitik (v2) ======================
+
+// Saldo total (rekening aktif) di akhir tiap hari dalam rentang [from, to].
+export function balanceSeries(rekening, transaksi, from, to) {
+  const active = rekening.filter(r => !r.arsip);
+  const zero = () => new Map(active.map(r => [r.id, 0]));
+  const delta = new Map(); // tanggal → perubahan total
+  let total = active.reduce((s, r) => s + num(r.saldo_awal), 0);
+  for (const t of transaksi) {
+    if (!alive(t)) continue;
+    const m = zero();
+    applyTx(m, t);
+    let d = 0;
+    for (const v of m.values()) d += v;
+    if (!d) continue;
+    if (t.tanggal <= to) total += d;
+    if (t.tanggal > from && t.tanggal <= to) delta.set(t.tanggal, (delta.get(t.tanggal) || 0) + d);
+  }
+  const out = [];
+  for (let day = to; day >= from; day = addDays(day, -1)) {
+    out.push({ tanggal: day, total });
+    total -= delta.get(day) || 0;
+  }
+  return out.reverse();
+}
+
+// Pengeluaran kumulatif per hari (index 0 = tanggal 1)
+export function cumulativeSpending(transaksi, month) {
+  let s = 0;
+  return dailySpending(transaksi, month).map(v => (s += v));
+}
+
+// Perkiraan pengeluaran sampai akhir bulan berjalan, dari laju sejauh ini.
+export function forecastMonth(transaksi, month, today) {
+  const spent = spentInMonth(transaksi, month);
+  const dim = daysInMonth(month);
+  if (month !== ym(today)) return { spent, projected: spent, avg: spent / dim, days: dim };
+  const d = dayOf(today);
+  const avg = spent / d;
+  return { spent, projected: Math.round(avg * dim), avg, days: d };
+}
+
+export function biggestExpense(transaksi, month) {
+  const [from, to] = monthRange(month);
+  let best = null;
+  for (const t of transaksi) if (alive(t) && t.tipe === 'keluar' && t.tanggal >= from && t.tanggal <= to && (!best || num(t.nominal) > num(best.nominal))) best = t;
+  return best;
+}
+
+// Catatan yang paling sering muncul bulan ini: [{ catatan, count, total }]
+export function topNotes(transaksi, month, n = 3) {
+  const [from, to] = monthRange(month);
+  const map = new Map();
+  for (const t of transaksi) {
+    if (!alive(t) || t.tipe !== 'keluar' || t.tanggal < from || t.tanggal > to) continue;
+    const k = normalize(t.catatan);
+    if (!k) continue;
+    const c = map.get(k) || { catatan: t.catatan, count: 0, total: 0 };
+    c.count++; c.total += num(t.nominal);
+    map.set(k, c);
+  }
+  return [...map.values()].filter(c => c.count >= 2).sort((a, b) => b.count - a.count || b.total - a.total).slice(0, n);
+}
+
+// Rata-rata pengeluaran per hari dalam seminggu (index 0 = Senin). { avg, total, days }
+export function weekdayPattern(transaksi, from, to) {
+  const out = Array.from({ length: 7 }, () => ({ total: 0, days: 0, avg: 0 }));
+  if (!from || !to || from > to) return out;
+  const idx = iso => (parseISO(iso).getDay() + 6) % 7;
+  for (let d = from; d <= to; d = addDays(d, 1)) out[idx(d)].days++;
+  for (const x of expenseItems(transaksi, from, to)) out[idx(x.tanggal)].total += x.nominal;
+  for (const o of out) o.avg = o.days ? o.total / o.days : 0;
+  return out;
+}
+
+// Jumlah hari tanpa pengeluaran sejak awal bulan sampai hari ini (atau sebulan penuh untuk bulan lalu)
+export function noSpendDays(transaksi, month, today) {
+  const data = dailySpending(transaksi, month);
+  const upto = month === ym(today) ? dayOf(today) : (month < ym(today) ? data.length : 0);
+  return data.slice(0, upto).filter(v => v <= 0).length;
+}
+
+// Berapa hari berturut-turut mencatat (boleh belum mencatat hari ini)
+export function logStreak(transaksi, today) {
+  const days = new Set();
+  for (const t of transaksi) if (alive(t) && t.sumber !== 'otomatis') days.add(t.tanggal);
+  let d = days.has(today) ? today : addDays(today, -1);
+  let n = 0;
+  while (days.has(d)) { n++; d = addDays(d, -1); }
+  return n;
+}
+
+// Kategori yang paling berubah dibanding periode yang sama bulan lalu: [{ kategori, cur, prev, diff }]
+export function categoryMovers(transaksi, month, today) {
+  const cur = ym(today);
+  const upto = month === cur ? dayOf(today) : daysInMonth(month);
+  const prevM = addMonths(month, -1);
+  const sum = (m) => {
+    const o = {};
+    for (const x of expenseItems(transaksi, `${m}-01`, dateIn(m, upto))) o[x.kategori] = (o[x.kategori] || 0) + x.nominal;
+    return o;
+  };
+  const a = sum(month), b = sum(prevM);
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])]
+    .map(k => ({ kategori: k, cur: a[k] || 0, prev: b[k] || 0, diff: (a[k] || 0) - (b[k] || 0) }))
+    .filter(x => x.prev > 0 && x.diff !== 0)
+    .sort((x, y) => Math.abs(y.diff) - Math.abs(x.diff));
+}
+
+// Rekening yang saldonya di bawah saldo minimum
+export function lowBalances(rekening, transaksi) {
+  const bal = balances(rekening, transaksi);
+  return rekening.filter(r => !r.arsip && num(r.saldo_minimum) > 0 && bal.get(r.id) < num(r.saldo_minimum))
+    .map(r => ({ ...r, saldo: bal.get(r.id) }));
+}
+
+/**
+ * Yang akan datang dalam `days` hari (termasuk hari ini dan tagihan yang sudah lewat tapi belum dibayar):
+ * tagihan belum lunas, transaksi berulang, dan admin bulanan. Urut tanggal.
+ */
+export function upcoming(tagihan, berulang, rekening, transaksi, today, days = 7) {
+  const until = addDays(today, days);
+  const out = [];
+  for (const m of [ym(today), ...(ym(until) !== ym(today) ? [ym(until)] : [])]) {
+    for (const b of billsForMonth(tagihan, transaksi, m)) {
+      if (b.lunas || b.due > until) continue;
+      if (b.due < today && m !== ym(today)) continue;
+      out.push({ jenis: 'tagihan', id: b.id, tanggal: b.due, nama: b.nama, nominal: num(b.nominal), tipe: 'keluar', kategori: b.kategori || 'Tagihan', periode: m, lewat: b.due < today });
+    }
+  }
+  const okAcc = new Set(rekening.filter(r => !r.arsip).map(r => r.id));
+  for (const r of berulang) {
+    if (!okAcc.has(r.akun)) continue;
+    const n = nextOccurrence(r, today);
+    if (n && n.tanggal <= until) out.push({ jenis: 'berulang', id: r.id, tanggal: n.tanggal, nama: r.nama, nominal: num(r.nominal), tipe: r.tipe, kategori: r.kategori });
+  }
+  for (const r of rekening) {
+    if (r.arsip) continue;
+    const n = nextAdminCharge(r, today);
+    if (n && n.tanggal <= until) out.push({ jenis: 'admin', id: r.id, tanggal: n.tanggal, nama: `Admin ${r.nama}`, nominal: n.nominal, tipe: 'keluar', kategori: n.kategori });
+  }
+  return out.sort((a, b) => a.tanggal.localeCompare(b.tanggal) || b.nominal - a.nominal);
+}

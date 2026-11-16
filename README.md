@@ -111,3 +111,26 @@ node --test tests/
 - Penulisan: cache diubah dulu → operasi masuk `outbox` → `flush()` mengirim ke Sheets. Sebelum append, id dicek dulu sehingga retry tidak membuat duplikat.
 - Transaksi biaya admin otomatis memakai id deterministik `admin-<rekeningId>-<YYYY-MM>` sehingga tercatat tepat sekali per bulan, termasuk dari beberapa HP.
 - Perubahan struktur data dilakukan lewat migrasi berdasarkan `schema_version` di sheet Meta (`js/drive.js`).
+
+## Yang baru di v2.0
+
+**Tampilan baru.** Kertas hangat, hijau zamrud, aksen emas koin; angka besar memakai Space Grotesk; navigasi mengambang; transisi antar layar dan grafik yang "menggambar".
+
+**Beranda** — tren saldo 30 hari, kartu *Sisa hari ini* (jatah harian dari budget), kartu insight *Untukmu* (perkiraan akhir bulan, kategori yang naik/turun, langganan tersering, saldo di bawah minimum, streak mencatat), dan *Akan datang* (tagihan, transaksi berulang, admin 7 hari ke depan).
+
+**Laporan** — laju pengeluaran kumulatif vs bulan lalu, donut kategori (ketuk kategori untuk melihat transaksinya), arus kas 6 bulan, dan pola per hari dalam seminggu.
+
+**Mencatat lebih cepat**
+- **Batalkan**: setelah simpan/hapus muncul tombol Batalkan selama 5 detik.
+- **Ulangi**: chip di layar Catat untuk transaksi berulang (tiap bulan/minggu). Kelola di Pengaturan → Transaksi berulang.
+- **Talangan**: catat pengeluaran yang sebagian ditalangi untuk orang lain. Saldo berkurang penuh, statistik hanya menghitung bagianmu, dan piutangnya muncul sebagai kartu *Piutang* di Rekening sampai ditandai Lunas.
+
+**Merencanakan**
+- **Target tabungan** (Rekening → Target), terhubung ke rekening atau disisihkan manual.
+- **Cicilan**: tagihan dengan tenor, tampil sebagai "Cicilan 8 dari 24".
+- **Rekap bulanan** yang bisa disimpan/dibagikan sebagai gambar (ikon bagikan di Laporan).
+- **Cek saldo mingguan**: mencocokkan saldo okane dengan saldo sebenarnya.
+
+**Kunci aplikasi** (Pengaturan → Keamanan): PIN 6 digit, opsional sidik jari. PIN disimpan hanya di HP sebagai hash; ini pelindung privasi di HP, bukan enkripsi data. Lupa PIN → masuk ulang dengan Google (data di Sheets aman).
+
+**Data.** Spreadsheet lama diperbarui otomatis saat sinkron pertama: hanya *menambah* sheet (Berulang, Piutang, Target) dan kolom di ujung (Transaksi: `berulang_id`; Tagihan: `tenor`, `cicilan_mulai`). Tidak ada data yang diubah atau dihapus.

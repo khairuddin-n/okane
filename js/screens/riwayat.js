@@ -1,5 +1,5 @@
 import { svg } from '../icons.js';
-import { esc, rupiah, dayHeader } from '../format.js';
+import { esc, rupiah, dayHeader, monthShort } from '../format.js';
 import { todayISO, ym, addMonths } from '../dates.js';
 import { activeAccounts, byNewest, normalize, num } from '../model.js';
 import { txRow, accName } from '../ui.js';
@@ -15,6 +15,12 @@ function filtered(state) {
     if (t.dihapus) return false;
     if (filter === 'keluar' || filter === 'masuk' || filter === 'transfer') { if (t.tipe !== filter) return false; }
     else if (filter.startsWith('acc:')) { const id = filter.slice(4); if (t.akun !== id && t.akun_tujuan !== id) return false; }
+    else if (filter.startsWith('kat:')) { // dari Laporan: satu kategori di satu bulan
+      const [kat, bulan] = filter.slice(4).split('|');
+      if (bulan && ym(t.tanggal) !== bulan) return false;
+      const fee = kat === 'Biaya bank' && t.tipe === 'transfer' && num(t.biaya_admin) > 0;
+      if (!fee && !(t.tipe === 'keluar' && (t.kategori || 'Lainnya') === kat)) return false;
+    }
     if (nq) {
       const hay = normalize([t.catatan, t.kategori, accName(t.akun), t.akun_tujuan ? accName(t.akun_tujuan) : ''].join(' '));
       if (!hay.includes(nq)) return false;
@@ -33,7 +39,7 @@ function dayNet(list, accFilter) {
     else if (t.tipe === 'transfer') {
       if (accFilter) { if (t.akun === accFilter) s -= n + num(t.biaya_admin); if (t.akun_tujuan === accFilter) s += n; }
       else s -= num(t.biaya_admin);
-    } else if (t.tipe === 'penyesuaian') s += n;
+    } else if (t.tipe === 'penyesuaian' || t.tipe === 'pelunasan') s += n;
   }
   return s;
 }
@@ -41,7 +47,7 @@ function dayNet(list, accFilter) {
 function listHTML(state) {
   const today = todayISO();
   const all = filtered(state);
-  const from = q ? '' : `${addMonths(ym(today), -(months - 1))}-01`;
+  const from = q || filter.startsWith('kat:') ? '' : `${addMonths(ym(today), -(months - 1))}-01`;
   const shown = from ? all.filter(t => t.tanggal >= from) : all;
   const more = from && all.length > shown.length;
   const groups = new Map();
@@ -56,17 +62,23 @@ function listHTML(state) {
   }
   if (!shown.length) html = `<p class="empty" style="margin-top:24px">${q || filter !== 'all' ? 'Tidak ditemukan.' : 'Belum ada transaksi.'}</p>`;
   if (more) html += `<div class="pad" style="margin-top:14px"><button class="btn ghost big" data-act="more">Muat lagi</button></div>`;
-  return { html, count: all.length };
+  let masuk = 0, keluar = 0;
+  for (const t of shown) { if (t.tipe === 'masuk') masuk += num(t.nominal); else if (t.tipe === 'keluar') keluar += num(t.nominal); else if (t.tipe === 'transfer') keluar += num(t.biaya_admin); }
+  const sum = shown.length ? `<div class="rw-sum"><div><span>Masuk</span><b class="num t-income">${rupiah(masuk)}</b></div><div><span>Keluar</span><b class="num t-expense">${rupiah(keluar)}</b></div><div><span>Selisih</span><b class="num">${rupiah(masuk - keluar, { sign: true })}</b></div></div>` : '';
+  return { html: sum + html, count: all.length };
 }
 
 export default {
   live: true,
   enter(query) {
     if (query.akun) { filter = `acc:${query.akun}`; months = 1; q = ''; }
+    if (query.kat) { filter = `kat:${query.kat}|${/^\d{4}-\d{2}$/.test(query.bulan || '') ? query.bulan : ''}`; months = 1; q = ''; }
   },
   render({ state }) {
     const accs = activeAccounts(state.rekening);
-    const chips = [['all', 'Semua'], ['keluar', 'Pengeluaran'], ['masuk', 'Pemasukan'], ['transfer', 'Transfer'], ...accs.map(r => [`acc:${r.id}`, r.nama])];
+    let katChip = [];
+    if (filter.startsWith('kat:')) { const [kat, bulan] = filter.slice(4).split('|'); katChip = [[filter, `${kat}${bulan ? ` · ${monthShort(bulan)}` : ''}`]]; }
+    const chips = [['all', 'Semua'], ...katChip, ['keluar', 'Pengeluaran'], ['masuk', 'Pemasukan'], ['transfer', 'Transfer'], ...accs.map(r => [`acc:${r.id}`, r.nama])];
     const { html, count } = listHTML(state);
     return `
       <div class="top"><div style="flex:1"><h1>Riwayat</h1><div class="sub" id="rw-count">${count} transaksi</div></div></div>

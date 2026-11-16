@@ -255,3 +255,228 @@ describe('tanggal', () => {
     assert.equal(addMonths('2026-01', -1), '2025-12');
   });
 });
+
+describe('transaksi berulang', () => {
+  const rule = o => ({ id: 'r1', nama: 'Gaji', tipe: 'masuk', nominal: 8_000_000, kategori: 'Gaji', akun: 'a', akun_tujuan: '', jadwal: 'bulanan:1', mulai: '2026-08-15', aktif: true, ...o });
+
+  test('bulanan: catch-up periode terlewat, id deterministik, idempoten', () => {
+    const due = M.dueRecurring([rule()], [], '2026-11-16');
+    assert.deepEqual(due.map(t => t.id), ['rule-r1-2026-09', 'rule-r1-2026-10', 'rule-r1-2026-11']);
+    assert.deepEqual(due.map(t => t.tanggal), ['2026-09-01', '2026-10-01', '2026-11-01']);
+    assert.ok(due.every(t => t.sumber === 'otomatis' && t.berulang_id === 'r1' && t.tipe === 'masuk' && t.nominal === 8_000_000));
+    assert.deepEqual(M.dueRecurring([rule()], due, '2026-11-16'), []);
+    // yang dihapus pengguna tidak muncul lagi
+    assert.deepEqual(M.dueRecurring([rule()], due.map(t => ({ ...t, dihapus: true })), '2026-11-16'), []);
+  });
+  test('bulanan:akhir dan tgl 31 mengikuti panjang bulan', () => {
+    const d = M.dueRecurring([rule({ jadwal: 'bulanan:akhir', mulai: '2026-01-01' })], [], '2026-03-01').map(t => t.tanggal);
+    assert.deepEqual(d, ['2026-01-31', '2026-02-28']);
+    assert.deepEqual(M.occurrences('bulanan:31', '2026-04-01', '2026-04-30'), [{ tanggal: '2026-04-30', periode: '2026-04' }]);
+  });
+  test('mingguan: 1 = Senin, periode = tanggalnya', () => {
+    // 2026-11-16 adalah hari Senin
+    const occ = M.occurrences('mingguan:1', '2026-11-03', '2026-11-16');
+    assert.deepEqual(occ.map(o => o.tanggal), ['2026-11-09', '2026-11-16']);
+    assert.equal(M.dueRecurring([rule({ jadwal: 'mingguan:7', mulai: '2026-11-10' })], [], '2026-11-16')[0].id, 'rule-r1-2026-11-15');
+    assert.equal(M.scheduleFrom('mingguan', '2026-11-16'), 'mingguan:1');
+    assert.equal(M.scheduleFrom('bulanan', '2026-11-16'), 'bulanan:16');
+    assert.equal(M.scheduleFrom('bulanan', '2026-11-30'), 'bulanan:akhir');
+    assert.equal(M.scheduleFrom('bulanan', '2026-02-28'), 'bulanan:28');
+  });
+  test('nonaktif, jadwal rusak, rekening arsip, dan transfer tanpa tujuan dilewati', () => {
+    const rek = [acc({ id: 'a' }), acc({ id: 'b', arsip: true })];
+    assert.deepEqual(M.dueRecurring([rule({ aktif: false })], [], '2026-11-16'), []);
+    assert.deepEqual(M.dueRecurring([rule({ jadwal: 'harian' })], [], '2026-11-16'), []);
+    assert.deepEqual(M.dueRecurring([rule({ akun: 'b' })], [], '2026-11-16', rek), []);
+    assert.deepEqual(M.dueRecurring([rule({ tipe: 'transfer' })], [], '2026-11-16'), []);
+    const tr = M.dueRecurring([rule({ tipe: 'transfer', akun_tujuan: 'c', mulai: '2026-11-01' })], [], '2026-11-16');
+    assert.equal(tr.length, 1); assert.equal(tr[0].akun_tujuan, 'c'); assert.equal(tr[0].kategori, '');
+  });
+  test('label dan jatuh tempo berikutnya', () => {
+    assert.equal(M.scheduleLabel('bulanan:1'), 'Tiap tgl 1');
+    assert.equal(M.scheduleLabel('bulanan:akhir'), 'Tiap akhir bulan');
+    assert.equal(M.scheduleLabel('mingguan:5'), 'Tiap Jumat');
+    assert.equal(M.nextOccurrence(rule(), '2026-11-16').tanggal, '2026-12-01');
+    assert.equal(M.nextOccurrence(rule({ jadwal: 'bulanan:16', mulai: '2026-11-17' }), '2026-11-16').tanggal, '2026-12-16');
+  });
+});
+
+describe('talangan & piutang', () => {
+  const rek = [acc({ id: 'a', saldo_awal: 500_000 })];
+  const list = [
+    tx({ id: 'mk', tipe: 'keluar', nominal: 300_000, kategori: 'Makan', akun: 'a' }),
+    tx({ id: 'lunas1', tipe: 'pelunasan', nominal: 100_000, akun: 'a' }),
+  ];
+  const piutang = [
+    { id: 'p1', transaksi_id: 'mk', nama: 'Budi', nominal: 100_000, tanggal: '2026-11-10', lunas_transaksi_id: 'lunas1' },
+    { id: 'p2', transaksi_id: 'mk', nama: 'Sari', nominal: 100_000, tanggal: '2026-11-10', lunas_transaksi_id: '' },
+    { id: 'p3', transaksi_id: 'mk', nama: 'Hapus', nominal: 50_000, tanggal: '2026-11-10', dihapus: true },
+    { id: 'p4', transaksi_id: 'tidak-ada', nama: 'Yatim', nominal: 70_000, tanggal: '2026-11-09' },
+  ];
+  test('saldo berkurang penuh, pelunasan menambah saldo tapi bukan pemasukan', () => {
+    assert.equal(M.balanceOf('a', rek, list), 500_000 - 300_000 + 100_000);
+    assert.equal(M.incomeInMonth(list, '2026-11'), 0);
+  });
+  test('statistik hanya menghitung bagianmu', () => {
+    const stat = M.applyShares(list, piutang);
+    assert.equal(M.spentInMonth(stat, '2026-11'), 100_000);
+    assert.equal(M.spentInMonth(list, '2026-11'), 300_000);
+    assert.equal(M.applyShares(list, []), list);
+  });
+  test('piutang terbuka: belum lunas, asal masih ada', () => {
+    const open = M.openDebts(piutang, list);
+    assert.deepEqual(open.map(p => p.id), ['p2']);
+    assert.equal(M.debtTotal(open), 100_000);
+    // pelunasan dihapus → piutang terbuka lagi
+    const undone = list.map(t => (t.id === 'lunas1' ? { ...t, dihapus: true } : t));
+    assert.deepEqual(M.openDebts(piutang, undone).map(p => p.id).sort(), ['p1', 'p2']);
+    // transaksi asal dihapus → piutang gugur
+    assert.deepEqual(M.openDebts(piutang, list.map(t => (t.id === 'mk' ? { ...t, dihapus: true } : t))), []);
+  });
+  test('saran nama dan bagi rata', () => {
+    assert.deepEqual(M.debtNames([...piutang, { id: 'p5', nama: 'sari', nominal: 1, tanggal: '2026-11-12' }]).slice(0, 2), ['sari', 'Budi']);
+    assert.equal(M.splitEven(100_000, 2), 33_333);
+    assert.equal(M.splitEven(100_000, 0), 0);
+  });
+});
+
+describe('target tabungan', () => {
+  const rek = [acc({ id: 'jago', saldo_awal: 1_000_000, dibuat: '2026-01-01T09:00:00+07:00' })];
+  const list = ['2026-08-05', '2026-09-05', '2026-10-05'].map(d => tx({ tipe: 'masuk', nominal: 500_000, akun: 'jago', tanggal: d }));
+  test('progres dari saldo rekening atau angka manual', () => {
+    const p = M.targetProgress({ target_nominal: 5_000_000, rekening_id: 'jago' }, rek, list);
+    assert.equal(p.terkumpul, 2_500_000); assert.equal(p.pct, 0.5); assert.equal(p.kurang, 2_500_000); assert.ok(p.linked);
+    const m = M.targetProgress({ target_nominal: 1_000_000, terkumpul_manual: 1_200_000 }, rek, list);
+    assert.ok(m.done); assert.equal(m.kurang, 0); assert.equal(m.linked, false);
+  });
+  test('perkiraan dengan tenggat: per bulan', () => {
+    const f = M.targetForecast({ target_nominal: 5_000_000, rekening_id: 'jago', target_tanggal: '2027-04-30' }, rek, list, '2026-11-16');
+    assert.deepEqual(f, { kind: 'tenggat', kurang: 2_500_000, perBulan: 500_000, bulan: '2027-04' });
+    assert.equal(M.targetForecast({ target_nominal: 5_000_000, terkumpul_manual: 0, target_tanggal: '2026-11-01' }, rek, list, '2026-11-16').kind, 'lewat');
+  });
+  test('perkiraan tanpa tenggat: rata-rata kenaikan 3 bulan terakhir', () => {
+    const f = M.targetForecast({ target_nominal: 5_000_000, rekening_id: 'jago' }, rek, list, '2026-11-16');
+    assert.deepEqual(f, { kind: 'eta', perBulan: 500_000, bulan: '2027-04' });
+  });
+  test('data belum cukup, tidak naik, atau manual tanpa tenggat → tanpa perkiraan', () => {
+    const baru = [acc({ id: 'jago', saldo_awal: 0, dibuat: '2026-10-01T09:00:00+07:00' })];
+    assert.equal(M.targetForecast({ target_nominal: 5_000_000, rekening_id: 'jago' }, baru, list.slice(2), '2026-11-16'), null);
+    assert.equal(M.targetForecast({ target_nominal: 5_000_000, rekening_id: 'jago' }, rek, [], '2026-11-16'), null);
+    assert.equal(M.targetForecast({ target_nominal: 5_000_000, terkumpul_manual: 100 }, rek, list, '2026-11-16'), null);
+    assert.equal(M.targetForecast({ target_nominal: 1_000_000, rekening_id: 'jago' }, rek, list, '2026-11-16'), null); // sudah tercapai
+  });
+});
+
+describe('cicilan', () => {
+  const bill = o => ({ id: 'hp', nama: 'Cicilan HP', nominal: 500_000, tanggal: 5, akun: 'a', kategori: 'Tagihan', aktif: true, tenor: 3, cicilan_mulai: '2026-10', dibuat: '2026-10-02T09:00:00+07:00', ...o });
+  const pay = p => tx({ tipe: 'keluar', nominal: 500_000, tagihan_id: 'hp', periode: p, tanggal: `${p}-05` });
+  test('progres dihitung dari periode lunas', () => {
+    assert.deepEqual(M.installmentInfo(bill(), [pay('2026-10'), pay('2026-11')]), { paid: 2, tenor: 3, done: false, start: '2026-10' });
+    assert.equal(M.installmentInfo(bill({ tenor: 0 }), []), null);
+  });
+  test('cicilan yang sudah berjalan sebelum dicatat dianggap terbayar', () => {
+    const b = bill({ tenor: 24, cicilan_mulai: '2026-04', dibuat: '2026-11-16T09:00:00+07:00' });
+    assert.equal(M.installmentInfo(b, []).paid, 7);
+    assert.equal(M.installmentInfo(b, [pay('2026-11')]).paid, 8);
+  });
+  test('belum mulai → tidak tampil; lunas semua → otomatis tidak aktif', () => {
+    assert.equal(M.billsForMonth([bill()], [], '2026-09').length, 0);
+    const all = [pay('2026-10'), pay('2026-11'), pay('2026-12')];
+    const dec = M.billsForMonth([bill()], all, '2026-12');
+    assert.equal(dec.length, 1); assert.ok(dec[0].lunas); assert.ok(dec[0].cicilan.done);
+    assert.equal(M.billsForMonth([bill()], all, '2027-01').length, 0);
+    // tagihan biasa tidak terpengaruh
+    assert.equal(M.billsForMonth([bill({ tenor: 0, cicilan_mulai: '' })], all, '2027-01').length, 1);
+  });
+});
+
+describe('rekap, arus kas, cek saldo', () => {
+  const list = [
+    tx({ tipe: 'masuk', nominal: 8_000_000, tanggal: '2026-10-01' }),
+    tx({ tipe: 'keluar', nominal: 3_000_000, kategori: 'Makan', tanggal: '2026-10-10' }),
+    tx({ tipe: 'keluar', nominal: 1_000_000, kategori: 'Transport', tanggal: '2026-10-11' }),
+    tx({ tipe: 'keluar', nominal: 500_000, kategori: 'Jajan', tanggal: '2026-10-12' }),
+    tx({ tipe: 'keluar', nominal: 500_000, kategori: 'Hiburan', tanggal: '2026-10-13' }),
+    tx({ tipe: 'keluar', nominal: 10_000_000, kategori: 'Makan', tanggal: '2026-09-10' }),
+    tx({ tipe: 'transfer', nominal: 9_000_000, akun_tujuan: 'b', tanggal: '2026-10-14' }),
+  ];
+  test('rekap bulan: masuk, keluar, sisa, 3 kategori terbesar, banding bulan lalu', () => {
+    const r = M.recap(list, '2026-10');
+    assert.equal(r.masuk, 8_000_000); assert.equal(r.keluar, 5_000_000); assert.equal(r.sisa, 3_000_000);
+    assert.deepEqual(r.top.map(t => t.kategori), ['Makan', 'Transport', 'Jajan']);
+    assert.equal(r.top[0].share, 0.6);
+    assert.equal(r.hemat, 0.5); assert.equal(r.tabung, 0.375); assert.equal(r.count, 6);
+    assert.equal(M.recap(list, '2026-09').hemat, null);
+  });
+  test('arus kas per bulan', () => {
+    assert.deepEqual(M.cashflow(list, '2026-10', 2), [{ month: '2026-09', masuk: 0, keluar: 10_000_000 }, { month: '2026-10', masuk: 8_000_000, keluar: 5_000_000 }]);
+  });
+  test('cek saldo mingguan: 7 hari sejak cek terakhir, bisa ditunda', () => {
+    assert.equal(M.balanceCheckDue('2026-11-09', '2026-11-16'), true);
+    assert.equal(M.balanceCheckDue('2026-11-10T08:00:00+07:00', '2026-11-16'), false);
+    assert.equal(M.balanceCheckDue('2026-11-01', '2026-11-16', '2026-11-18'), false);
+    assert.equal(M.balanceCheckDue('2026-11-01', '2026-11-18', '2026-11-18'), true);
+    assert.equal(M.balanceCheckDue('', '2026-11-16'), false);
+  });
+});
+
+describe('analitik v2', () => {
+  const rek = [acc({ id: 'a', saldo_awal: 1_000_000, saldo_minimum: 950_000 }), acc({ id: 'b', saldo_awal: 500_000 }), acc({ id: 'z', saldo_awal: 9_999, arsip: true })];
+  const list = [
+    tx({ tipe: 'keluar', nominal: 100_000, kategori: 'Makan', catatan: 'Nasi Padang', akun: 'a', tanggal: '2026-11-02' }),
+    tx({ tipe: 'keluar', nominal: 20_000, kategori: 'Transport', catatan: 'GrabBike', akun: 'a', tanggal: '2026-11-03' }),
+    tx({ tipe: 'keluar', nominal: 30_000, kategori: 'Transport', catatan: 'grabbike', akun: 'b', tanggal: '2026-11-03' }),
+    tx({ tipe: 'transfer', nominal: 200_000, akun: 'a', akun_tujuan: 'b', biaya_admin: 2_500, tanggal: '2026-11-04' }),
+    tx({ tipe: 'masuk', nominal: 1_000_000, kategori: 'Gaji', akun: 'b', tanggal: '2026-11-05' }),
+    tx({ tipe: 'keluar', nominal: 50_000, kategori: 'Makan', catatan: 'Bakso', akun: 'a', tanggal: '2026-10-02' }),
+    tx({ tipe: 'keluar', nominal: 999_000, kategori: 'Makan', akun: 'a', tanggal: '2026-11-03', dihapus: true }),
+  ];
+  test('balanceSeries: saldo total akhir tiap hari, transfer antar rekening netral (kecuali biaya)', () => {
+    const s = M.balanceSeries(rek, list, '2026-11-01', '2026-11-05');
+    assert.deepEqual(s.map(x => x.total), [1_450_000, 1_350_000, 1_300_000, 1_297_500, 2_297_500]);
+    assert.equal(s[4].total, M.totalBalance(rek, list));
+    assert.equal(s[0].tanggal, '2026-11-01');
+  });
+  test('kumulatif & perkiraan akhir bulan', () => {
+    const c = M.cumulativeSpending(list, '2026-11');
+    assert.equal(c[0], 0); assert.equal(c[1], 100_000); assert.equal(c[2], 150_000); assert.equal(c[29], 152_500);
+    const f = M.forecastMonth(list, '2026-11', '2026-11-10');
+    assert.equal(f.spent, 152_500); assert.equal(f.projected, 457_500); assert.equal(f.avg, 15_250);
+    assert.equal(M.forecastMonth(list, '2026-10', '2026-11-10').projected, 50_000);
+  });
+  test('pengeluaran terbesar, catatan tersering, hari tanpa belanja', () => {
+    assert.equal(M.biggestExpense(list, '2026-11').catatan, 'Nasi Padang');
+    assert.equal(M.biggestExpense(list, '2026-09'), null);
+    assert.deepEqual(M.topNotes(list, '2026-11').map(n => [n.count, n.total]), [[2, 50_000]]);
+    assert.equal(M.noSpendDays(list, '2026-11', '2026-11-05'), 2); // tgl 1 dan 5
+  });
+  test('pola hari: Senin = index 0', () => {
+    // 2026-11-02 Senin, 03 Selasa, 04 Rabu
+    const w = M.weekdayPattern(list, '2026-11-02', '2026-11-08');
+    assert.deepEqual(w.map(x => x.total), [100_000, 50_000, 2_500, 0, 0, 0, 0]);
+    assert.ok(w.every(x => x.days === 1));
+  });
+  test('streak mencatat: berturut-turut, hari ini boleh kosong', () => {
+    assert.equal(M.logStreak(list, '2026-11-05'), 4);
+    assert.equal(M.logStreak(list, '2026-11-06'), 4);
+    assert.equal(M.logStreak(list, '2026-11-07'), 0);
+  });
+  test('kategori paling berubah vs periode sama bulan lalu', () => {
+    const mv = M.categoryMovers(list, '2026-11', '2026-11-10');
+    assert.deepEqual(mv, [{ kategori: 'Makan', cur: 100_000, prev: 50_000, diff: 50_000 }]);
+  });
+  test('saldo di bawah minimum', () => {
+    assert.deepEqual(M.lowBalances(rek, list).map(r => [r.id, r.saldo]), [['a', 627_500]]);
+  });
+  test('akan datang: tagihan belum lunas, berulang, admin; urut tanggal', () => {
+    const tagihan = [{ id: 'kos', nama: 'Kos', nominal: 1_500_000, tanggal: 12, akun: 'a', kategori: 'Tagihan', aktif: true }, { id: 'net', nama: 'Internet', nominal: 300_000, tanggal: 8, akun: 'a', aktif: true }];
+    const berulang = [{ id: 'g', nama: 'Gaji', tipe: 'masuk', nominal: 8_000_000, kategori: 'Gaji', akun: 'b', jadwal: 'bulanan:15', mulai: '2026-01-01', aktif: true }];
+    const rek2 = [...rek.slice(0, 2), acc({ id: 'c', nama: 'BNI', admin_nominal: 12_500, admin_jadwal: 'tgl:11' })];
+    const paid = [...list, tx({ tipe: 'keluar', nominal: 300_000, tagihan_id: 'net', periode: '2026-11', tanggal: '2026-11-08' })];
+    const up = M.upcoming(tagihan, berulang, rek2, paid, '2026-11-10', 7);
+    assert.deepEqual(up.map(u => [u.jenis, u.tanggal]), [['admin', '2026-11-11'], ['tagihan', '2026-11-12'], ['berulang', '2026-11-15']]);
+    // tagihan lewat jatuh tempo tetap muncul
+    const late = M.upcoming(tagihan, [], rek, list, '2026-11-10', 7);
+    assert.equal(late[0].nama, 'Internet'); assert.equal(late[0].lewat, true);
+  });
+});

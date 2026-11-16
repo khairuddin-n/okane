@@ -5,9 +5,13 @@ import { tile, syncLabel, openSheet, toast, confirmSheet } from '../ui.js';
 import { state, setPrivacy, saveCategory } from '../store.js';
 import { COLOR_CHOICES } from '../schema.js';
 import { num } from '../model.js';
+import * as lock from '../lock.js';
+import { balanceCheckEnabled, setBalanceCheckEnabled } from '../balance-check.js';
 
 const APP_VERSION = window.APP_VERSION || 'dev';
 let katTab = 'keluar';
+let sec = { lock: false, bio: false, bioOk: false }; // status kunci (dibaca async dari IndexedDB)
+const loadSec = async () => { sec = { lock: await lock.hasLock(), bio: await lock.hasBio(), bioOk: await lock.bioAvailable() }; };
 
 function lastSyncText() {
   if (!state.lastSync) return 'Belum pernah';
@@ -34,7 +38,15 @@ function mainView() {
       <div><div class="li" style="min-height:40px;padding-bottom:0"><span class="mid"><span class="ttl">Tema</span></span></div>
         <div class="themes">${[['system', 'Sistem'], ['light', 'Terang'], ['dark', 'Gelap']].map(([k, l]) => `<button class="theme-opt ${pref === k ? 'on' : ''}" data-theme-opt="${k}" aria-pressed="${pref === k}"><span class="sw ${k}"></span>${l}</button>`).join('')}</div>
         </div>
-      <label class="li"><span class="mid"><span class="ttl">Sembunyikan nominal saat dibuka</span></span>
+    </div>
+
+    <div class="group-t">KEAMANAN</div>
+    <div class="list">
+      <label class="li">${svg('lock')}<span class="mid"><span class="ttl">Kunci aplikasi</span></span>
+        <span class="switch"><input type="checkbox" data-act="lock" ${sec.lock ? 'checked' : ''} aria-label="Kunci aplikasi"><i></i></span></label>
+      ${sec.lock && sec.bioOk ? `<label class="li">${svg('finger')}<span class="mid"><span class="ttl">Sidik jari</span></span>
+        <span class="switch"><input type="checkbox" data-act="bio" ${sec.bio ? 'checked' : ''} aria-label="Buka dengan sidik jari"><i></i></span></label>` : ''}
+      <label class="li">${svg('eyeOff')}<span class="mid"><span class="ttl">Sembunyikan nominal saat dibuka</span></span>
         <span class="switch"><input type="checkbox" data-act="privOnOpen" ${privOnOpen ? 'checked' : ''} aria-label="Sembunyikan nominal saat dibuka"><i></i></span></label>
     </div>
 
@@ -43,6 +55,9 @@ function mainView() {
       ${isGoogle ? `<button class="li" data-act="sync">${svg('sync')}<span class="mid"><span class="ttl">Sinkron sekarang</span><span class="meta" style="display:block">${esc(lastSyncText())}</span></span></button>
       <a class="li" href="https://docs.google.com/spreadsheets/d/${esc(state.spreadsheetId || '')}" target="_blank" rel="noopener">${svg('sheet')}<span class="mid"><span class="ttl">Buka di Google Sheets</span></span>${svg('chevronRight', 18)}</a>` : ''}
       <a class="li" href="#/pengaturan/kategori">${svg('tag')}<span class="mid"><span class="ttl">Kategori & ikon</span></span>${svg('chevronRight', 18)}</a>
+      <a class="li" href="#/pengaturan/berulang">${svg('repeat')}<span class="mid"><span class="ttl">Transaksi berulang</span></span>${svg('chevronRight', 18)}</a>
+      <label class="li">${svg('check')}<span class="mid"><span class="ttl">Cek saldo mingguan</span></span>
+        <span class="switch"><input type="checkbox" data-act="bc" ${balanceCheckEnabled() ? 'checked' : ''} aria-label="Cek saldo mingguan"><i></i></span></label>
       <button class="li" data-act="csv">${svg('download')}<span class="mid"><span class="ttl">Ekspor CSV</span></span></button>
     </div>
 
@@ -122,6 +137,7 @@ function exportCSV() {
 
 export default {
   live: true,
+  enter() { loadSec().then(() => { if (location.hash.startsWith('#/pengaturan')) window.dispatchEvent(new Event('okane:rerender')); }); },
   render({ params }) { return params.sub === 'kategori' ? katView() : mainView(); },
   bind(root, ctx) {
     root.querySelector('[data-act="back"]').onclick = () => ctx.back();
@@ -137,6 +153,20 @@ export default {
       if (e.target.checked) setPrivacy(true);
     };
     root.querySelector('[data-act="csv"]').onclick = exportCSV;
+    root.querySelector('[data-act="bc"]').onchange = e => setBalanceCheckEnabled(e.target.checked);
+    const refresh = async () => { await loadSec(); ctx.rerender(); };
+    root.querySelector('[data-act="lock"]').onchange = async e => {
+      if (e.target.checked) {
+        const pin = await lock.createPin();
+        if (pin) { await lock.setPin(pin); toast('Kunci aktif'); }
+      } else { await lock.clearLock(); toast('Kunci dimatikan'); }
+      refresh();
+    };
+    const bio = root.querySelector('[data-act="bio"]');
+    if (bio) bio.onchange = async e => {
+      try { if (e.target.checked) await lock.enableBio(); else await lock.disableBio(); } catch { toast('Sidik jari tidak bisa diaktifkan'); }
+      refresh();
+    };
     const sync = root.querySelector('[data-act="sync"]');
     if (sync) sync.onclick = () => ctx.syncNow?.({ interactive: true });
     root.querySelector('[data-act="logout"]').onclick = () => ctx.logout?.();

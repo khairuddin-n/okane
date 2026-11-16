@@ -11,11 +11,29 @@ export function money(n, { sign = false } = {}) {
   return `${s}<span class="cur">Rp</span>${group(n)}`;
 }
 
+// Angka besar menghitung naik saat layar dibuka (elemen ber-atribut data-count)
+export function countUp(root) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  root.querySelectorAll('[data-count]').forEach(el => {
+    const to = Number(el.dataset.count) || 0;
+    if (Math.abs(to) < 1000) return;
+    const from = to * 0.82, t0 = performance.now(), dur = 520;
+    const step = now => {
+      if (!el.isConnected) return;
+      const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.innerHTML = money(from + (to - from) * e);
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
 export const JENIS = { bank: 'Bank', ewallet: 'E-wallet', tunai: 'Tunai' };
 
 export function catStyle(tipe, nama) {
   if (tipe === 'transfer') return { ikon: 'transfer', warna: 'indigo' };
   if (tipe === 'penyesuaian') return { ikon: 'adjust', warna: 'abu' };
+  if (tipe === 'pelunasan') return { ikon: 'people', warna: 'violet' };
   const k = findCategory(tipe, nama);
   return k ? { ikon: k.ikon || 'lainnya', warna: k.warna || 'abu' } : { ikon: nama === 'Biaya bank' ? 'bank' : 'lainnya', warna: nama === 'Biaya bank' ? 'teal' : 'abu' };
 }
@@ -31,11 +49,12 @@ export const accName = id => findAccount(id)?.nama || '—';
 export function txTitle(t) {
   if (t.tipe === 'transfer') return t.catatan || `${accName(t.akun)} → ${accName(t.akun_tujuan)}`;
   if (t.tipe === 'penyesuaian') return t.catatan || 'Penyesuaian saldo';
+  if (t.tipe === 'pelunasan') return t.catatan || 'Piutang dikembalikan';
   return t.catatan || t.kategori || 'Transaksi';
 }
 
 export function txAmount(t) {
-  if (t.tipe === 'masuk') return `<span class="t-income">${rupiah(t.nominal, { sign: true })}</span>`;
+  if (t.tipe === 'masuk' || t.tipe === 'pelunasan') return `<span class="t-income">${rupiah(t.nominal, { sign: true })}</span>`;
   if (t.tipe === 'keluar') return `<span class="t-expense">${rupiah(-t.nominal)}</span>`;
   if (t.tipe === 'transfer') return `<span class="t-transfer">${rupiah(t.nominal)}</span>`;
   return `<span class="muted">${rupiah(t.nominal, { sign: true })}</span>`;
@@ -45,9 +64,11 @@ export function txRow(t, { showDate = false } = {}) {
   let meta;
   if (t.tipe === 'transfer') meta = `${esc(accName(t.akun))} → ${esc(accName(t.akun_tujuan))}`;
   else if (t.tipe === 'penyesuaian') meta = `Penyesuaian · ${esc(accName(t.akun))}`;
+  else if (t.tipe === 'pelunasan') meta = `Piutang · ${esc(accName(t.akun))}`;
   else meta = `${esc(t.kategori)} · ${esc(accName(t.akun))}`;
   meta += ` · ${showDate ? esc(t.tanggal.slice(8, 10) + '/' + t.tanggal.slice(5, 7)) + ' ' : ''}${esc(t.jam || '')}`;
-  const auto = t.sumber === 'otomatis' ? '<span class="auto-tag">otomatis</span>' : '';
+  const auto = (t.sumber === 'otomatis' ? '<span class="auto-tag">otomatis</span>' : '')
+    + (t.tipe === 'keluar' && state.piutang.some(p => p.transaksi_id === t.id && !p.dihapus) ? '<span class="auto-tag">talangan</span>' : '');
   const admin = t.tipe === 'transfer' && Number(t.biaya_admin) > 0 ? `<small>admin ${rupiah(t.biaya_admin)}</small>` : '';
   return `<button class="row" data-tx="${esc(t.id)}">
     ${catTile(t.tipe, t.kategori)}
@@ -68,6 +89,11 @@ export function toast(msg, { action, onAction, ms = 2600 } = {}) {
   if (action) host.querySelector('button').onclick = () => { host.innerHTML = ''; onAction?.(); };
   clearTimeout(toastTimer);
   if (ms) toastTimer = setTimeout(() => { host.innerHTML = ''; }, ms);
+}
+
+// Snackbar dengan tombol Batalkan (5 detik)
+export function undoToast(msg, undo) {
+  toast(msg, { action: 'Batalkan', ms: 5000, onAction: async () => { try { await undo(); toast('Dibatalkan'); } catch (e) { console.warn(e); toast('Gagal membatalkan'); } } });
 }
 
 // ---------- Bottom sheet ----------

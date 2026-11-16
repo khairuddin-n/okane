@@ -1,11 +1,12 @@
 import { svg } from '../icons.js';
 import { esc, rupiah, compact, group, parseAmount } from '../format.js';
-import { todayISO, hhmm, isoDate, nowISO } from '../dates.js';
-import { balances, activeAccounts, frequentEntries, matchNotes, guessCategory, applyGuess, guessLabel, num } from '../model.js';
-import { tile, accChip, toast, confirmSheet, catTile, accName } from '../ui.js';
-import { state, saveTx, deleteTx, findAccount } from '../store.js';
+import { todayISO, hhmm, isoDate, nowISO, addDays } from '../dates.js';
+import { balances, activeAccounts, frequentEntries, matchNotes, guessCategory, applyGuess, guessLabel, num, liveDebts, debtNames, splitEven, scheduleFrom, scheduleLabel } from '../model.js';
+import { tile, accChip, toast, undoToast, catTile, accName } from '../ui.js';
+import { state, saveTx, deleteTx, saveDebts, saveRule, withUndo, runAutomations, findAccount } from '../store.js';
 
 const TABS = [['keluar', 'Pengeluaran'], ['masuk', 'Pemasukan'], ['transfer', 'Transfer']];
+const READ_ONLY = { penyesuaian: 'Penyesuaian saldo', pelunasan: 'Piutang dikembalikan' };
 let f; // form state
 
 function freshForm(query) {
@@ -16,15 +17,21 @@ function freshForm(query) {
     sel: { kategori: '', manual: false, auto: null }, akun: accs[0]?.id || '', akunManual: false,
     akunTujuan: accs[1]?.id || '', biaya: 0, tanggal: isoDate(now), jam: hhmm(now),
     tagihan_id: '', periode: '',
+    ulang: '',                    // '' | 'bulanan' | 'mingguan'
+    talangan: false, orang: [],   // [{ id?, nama, nominal, lunas }]
+    hadDebts: false,
   };
   if (query.id) {
     const t = state.transaksi.find(x => x.id === query.id);
     if (t) {
+      const orang = liveDebts(state.piutang, state.transaksi).filter(p => p.transaksi_id === t.id)
+        .map(p => ({ id: p.id, nama: p.nama, nominal: num(p.nominal), lunas: p.lunas }));
       Object.assign(base, {
         id: t.id, original: t, tipe: t.tipe, nominal: num(t.nominal), catatan: t.catatan || '',
         sel: { kategori: t.kategori, manual: true, auto: null }, akun: t.akun, akunManual: true,
         akunTujuan: t.akun_tujuan || base.akunTujuan, biaya: num(t.biaya_admin), tanggal: t.tanggal, jam: t.jam || '00:00',
         tagihan_id: t.tagihan_id || '', periode: t.periode || '',
+        talangan: orang.length > 0, orang, hadDebts: orang.length > 0,
       });
       return base;
     }
@@ -70,17 +77,54 @@ function suggHTML() {
   return suggestions().map((s, i) => `<button type="button" class="chip" data-sugg="${i}">${esc(s.catatan)}${state.privacy ? '' : ` <small>${compact(s.nominal)}</small>`}</button>`).join('');
 }
 
+// ----- Talangan -----
+const talTotal = () => f.orang.reduce((s, o) => s + num(o.nominal), 0);
+const myShare = () => Math.max(0, f.nominal - talTotal());
+
+function talHTML() {
+  const names = debtNames(state.piutang);
+  return `<section class="card tal">
+    <div class="label" style="letter-spacing:.04em">DITALANGIN UNTUK</div>
+    ${f.orang.map((o, i) => o.lunas
+      ? `<div class="tal-row"><b style="flex:1">${esc(o.nama)}</b><span class="paid-tag">${svg('check', 14)}Lunas</span><b class="num">${rupiah(o.nominal, { raw: true })}</b></div>`
+      : `<div class="tal-row">
+        <input class="input" data-tn="${i}" list="tal-names" placeholder="Nama" autocomplete="off" value="${esc(o.nama)}" aria-label="Nama orang ${i + 1}">
+        <div class="money"><input class="input num" data-ta="${i}" inputmode="numeric" autocomplete="off" placeholder="0" value="${o.nominal ? group(o.nominal) : ''}" aria-label="Nominal orang ${i + 1}"></div>
+        <button type="button" class="icon-btn" data-td="${i}" aria-label="Hapus orang ${i + 1}">${svg('x', 18)}</button></div>`).join('')}
+    <datalist id="tal-names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+    <div class="row2"><button type="button" class="btn sm" data-act="tal-add">${svg('plus', 16)} Tambah orang</button>
+      <button type="button" class="btn sm" data-act="tal-split">Bagi rata</button></div>
+    <div class="tal-me"><span>Bagianmu</span><b class="num" id="tal-me">${rupiah(myShare(), { raw: true })}</b></div>
+  </section>`;
+}
+
+function optsHTML() {
+  const editing = !!f.id;
+  const canRepeat = !editing && !f.tagihan_id;
+  const canTal = f.tipe === 'keluar';
+  if (!canRepeat && !canTal) return '';
+  const label = f.ulang ? scheduleLabel(scheduleFrom(f.ulang, f.tanggal)) : '';
+  return `<div>
+    <div class="chips">
+      ${canRepeat ? `<button type="button" class="chip opt ${f.ulang ? 'on' : ''}" data-opt="ulang" aria-pressed="${!!f.ulang}">${svg('repeat', 16)}Ulangi</button>` : ''}
+      ${canTal ? `<button type="button" class="chip opt ${f.talangan ? 'on' : ''}" data-opt="talangan" aria-pressed="${f.talangan}">${svg('people', 16)}Talangan</button>` : ''}
+    </div>
+    ${canRepeat && f.ulang ? `<div class="seg" style="margin-top:10px"><button type="button" data-ulang="bulanan" class="${f.ulang === 'bulanan' ? 'on' : ''}">Tiap bulan</button><button type="button" data-ulang="mingguan" class="${f.ulang === 'mingguan' ? 'on' : ''}">Tiap minggu</button></div>
+      <p class="muted" style="font-size:13px;margin-top:6px" id="ulang-l">${esc(label)} · dicatat otomatis</p>` : ''}
+    ${canTal && f.talangan ? `<div style="margin-top:10px">${talHTML()}</div>` : ''}
+  </div>`;
+}
+
 function render() {
   const editing = !!f.id;
   const isTransfer = f.tipe === 'transfer';
-  const isAdj = f.tipe === 'penyesuaian';
-  if (isAdj) {
+  if (READ_ONLY[f.tipe]) {
     const t = f.original;
     return `<div class="catat">
-      <div class="top with-back"><button class="icon-btn" data-act="close" aria-label="Tutup">${svg('x')}</button><h1>Penyesuaian saldo</h1></div>
+      <div class="top with-back"><button class="icon-btn" data-act="close" aria-label="Tutup">${svg('x')}</button><h1>${READ_ONLY[f.tipe]}</h1></div>
       <div class="pad stack">
-        <div class="card" style="display:flex;gap:12px;align-items:center">${catTile('penyesuaian')}
-          <div style="flex:1"><b>${esc(accName(t.akun))}</b><div class="muted" style="font-size:13px">${esc(t.tanggal)} · ${esc(t.jam)}</div></div>
+        <div class="card" style="display:flex;gap:12px;align-items:center">${catTile(f.tipe)}
+          <div style="flex:1;min-width:0"><b>${esc(f.tipe === 'pelunasan' ? (t.catatan || accName(t.akun)) : accName(t.akun))}</b><div class="muted" style="font-size:13px">${f.tipe === 'pelunasan' ? `${esc(accName(t.akun))} · ` : ''}${esc(t.tanggal)} · ${esc(t.jam)}</div></div>
           <b class="num">${rupiah(t.nominal, { sign: true })}</b></div>
         <button class="btn danger-text big" data-act="delete">${svg('trash', 18)} Hapus</button>
       </div></div>`;
@@ -113,6 +157,7 @@ function render() {
           <div class="cat-grid" id="cats">${catsHTML()}</div></div>
         <div><div class="label">${f.tipe === 'keluar' ? 'Bayar pakai' : 'Masuk ke'}</div><div class="chips scroll" id="accs">${accChips(f.akun, 'acc')}</div></div>
       `}
+      ${optsHTML()}
       <div class="card" style="padding:4px 14px"><label class="inline-field"><span>Tanggal</span>
         <input id="when" type="datetime-local" value="${esc(f.tanggal)}T${esc(f.jam)}"></label></div>
     </div>
@@ -132,12 +177,11 @@ export default {
     const del = $('[data-act="delete"]');
     if (del) del.onclick = async () => {
       ctx.userAction?.();
-      if (!await confirmSheet({ title: 'Hapus transaksi?', text: 'Transaksi ini akan dihapus dari catatan dan Google Sheets.', ok: 'Hapus', danger: true })) return;
-      await deleteTx(f.id);
-      toast('Transaksi dihapus');
+      const undo = await withUndo(() => deleteTx(f.id));
+      undoToast('Transaksi dihapus', undo);
       ctx.back();
     };
-    if (f.tipe === 'penyesuaian') return;
+    if (READ_ONLY[f.tipe]) return;
 
     root.querySelectorAll('[data-tipe]').forEach(b => {
       b.onclick = () => {
@@ -150,16 +194,17 @@ export default {
       };
     });
 
+    const updShare = () => { const el = $('#tal-me'); if (el) el.textContent = rupiah(myShare(), { raw: true }); };
     const amt = $('#amt');
     const fit = () => { amt.style.width = `${Math.max(1, amt.value.length) * 0.62 + 0.4}em`; };
     amt.addEventListener('input', () => {
       const v = parseAmount(amt.value);
       amt.value = v ? group(v) : '';
       f.nominal = v;
-      fit();
+      fit(); updShare();
     });
     fit();
-    root.querySelectorAll('[data-quick]').forEach(b => { b.onclick = () => { f.nominal = Number(b.dataset.quick); amt.value = group(f.nominal); fit(); }; });
+    root.querySelectorAll('[data-quick]').forEach(b => { b.onclick = () => { f.nominal = Number(b.dataset.quick); amt.value = group(f.nominal); fit(); updShare(); }; });
 
     const note = $('#note');
     note.addEventListener('input', () => {
@@ -209,9 +254,49 @@ export default {
       fee.addEventListener('input', () => { const v = parseAmount(fee.value); fee.value = v ? group(v) : ''; f.biaya = v; });
     }
 
+    // ----- Opsi: Ulangi & Talangan -----
+    root.querySelectorAll('[data-opt]').forEach(b => {
+      b.onclick = () => {
+        if (b.dataset.opt === 'ulang') f.ulang = f.ulang ? '' : 'bulanan';
+        else {
+          if (f.talangan && f.orang.some(o => o.lunas)) { toast('Ada talangan yang sudah lunas'); return; }
+          f.talangan = !f.talangan;
+          if (f.talangan && !f.orang.length) f.orang.push({ nama: '', nominal: 0 });
+        }
+        rerender();
+        if (b.dataset.opt === 'talangan' && f.talangan) root.querySelector('[data-tn]')?.focus();
+      };
+    });
+    root.querySelectorAll('[data-ulang]').forEach(b => { b.onclick = () => { f.ulang = b.dataset.ulang; rerender(); }; });
+    root.querySelectorAll('[data-tn]').forEach(i => { i.addEventListener('input', () => { f.orang[Number(i.dataset.tn)].nama = i.value; }); });
+    root.querySelectorAll('[data-ta]').forEach(i => {
+      i.addEventListener('input', () => {
+        const v = parseAmount(i.value);
+        i.value = v ? group(v) : '';
+        f.orang[Number(i.dataset.ta)].nominal = v;
+        updShare();
+      });
+    });
+    root.querySelectorAll('[data-td]').forEach(b => {
+      b.onclick = () => { f.orang.splice(Number(b.dataset.td), 1); if (!f.orang.length) f.talangan = false; rerender(); };
+    });
+    const add = $('[data-act="tal-add"]');
+    if (add) add.onclick = () => { f.orang.push({ nama: '', nominal: 0 }); rerender(); const all = root.querySelectorAll('[data-tn]'); all[all.length - 1]?.focus(); };
+    const split = $('[data-act="tal-split"]');
+    if (split) split.onclick = () => {
+      if (!(f.nominal > 0)) { toast('Isi nominal dulu'); amt.focus(); return; }
+      const open = f.orang.filter(o => !o.lunas);
+      const locked = f.orang.filter(o => o.lunas).reduce((s, o) => s + num(o.nominal), 0);
+      const each = splitEven(f.nominal - locked, open.length);
+      for (const o of open) o.nominal = each;
+      rerender();
+    };
+
     $('#when').addEventListener('change', e => {
       const [d, t] = String(e.target.value).split('T');
       if (d) { f.tanggal = d; f.jam = (t || '00:00').slice(0, 5); }
+      const l = $('#ulang-l');
+      if (l && f.ulang) l.textContent = `${scheduleLabel(scheduleFrom(f.ulang, f.tanggal))} · dicatat otomatis`;
     });
 
     $('[data-act="save"]').onclick = async () => {
@@ -221,16 +306,38 @@ export default {
       if (f.tipe === 'transfer') {
         if (!f.akunTujuan || f.akunTujuan === f.akun) { toast('Pilih rekening tujuan yang berbeda'); return; }
       } else if (!f.sel.kategori) { toast('Pilih kategori dulu'); return; }
+
+      // talangan: baris kosong diabaikan
+      const useTal = f.tipe === 'keluar' && f.talangan;
+      const orang = useTal ? f.orang.filter(o => o.lunas || String(o.nama).trim() || num(o.nominal) > 0) : [];
+      if (orang.some(o => !String(o.nama).trim())) { toast('Isi nama orangnya'); return; }
+      if (orang.some(o => !(num(o.nominal) > 0))) { toast('Isi nominal talangan'); return; }
+      if (orang.reduce((s, o) => s + num(o.nominal), 0) > f.nominal) { toast('Talangan melebihi nominal'); return; }
+
+      const repeat = !f.id && !f.tagihan_id && f.ulang;
+      const ruleId = repeat ? crypto.randomUUID() : '';
+      const kategori = f.tipe === 'transfer' ? '' : f.sel.kategori;
       const tx = {
         ...(f.original || {}),
         id: f.id || crypto.randomUUID(), tanggal: f.tanggal, jam: f.jam, tipe: f.tipe, nominal: f.nominal,
-        kategori: f.tipe === 'transfer' ? '' : f.sel.kategori, akun: f.akun,
+        kategori, akun: f.akun,
         akun_tujuan: f.tipe === 'transfer' ? f.akunTujuan : '', biaya_admin: f.tipe === 'transfer' ? f.biaya : 0,
         catatan: f.catatan.trim(), tagihan_id: f.tagihan_id, periode: f.periode,
         diubah: nowISO(),
       };
-      await saveTx(tx);
-      toast('Tersimpan');
+      if (ruleId) tx.berulang_id = ruleId;
+      const undo = await withUndo(async () => {
+        await saveTx(tx);
+        if (orang.length || f.hadDebts) await saveDebts(tx, orang);
+        // transaksi ini jadi yang pertama; aturan mulai berlaku sehari setelahnya
+        if (ruleId) await saveRule({
+          id: ruleId, nama: tx.catatan || kategori || `${accName(tx.akun)} → ${accName(tx.akun_tujuan)}`, tipe: tx.tipe, nominal: tx.nominal,
+          kategori, akun: tx.akun, akun_tujuan: tx.akun_tujuan, jadwal: scheduleFrom(f.ulang, f.tanggal), mulai: addDays(f.tanggal, 1),
+        });
+      });
+      try { navigator.vibrate?.(12); } catch {}
+      undoToast(ruleId ? 'Tersimpan · berulang' : 'Tersimpan', undo);
+      if (ruleId) runAutomations().catch(console.warn); // tanggal mundur: periode yang terlewat langsung dicatat
       ctx.back();
     };
 

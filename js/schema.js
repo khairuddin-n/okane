@@ -1,11 +1,11 @@
 // Definisi sheet di Google Sheets ↔ store di IndexedDB.
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 3;
 
 export const SHEETS = [
   {
     name: 'Transaksi', store: 'transaksi', key: ['id'],
-    cols: ['id', 'tanggal', 'jam', 'tipe', 'nominal', 'kategori', 'akun', 'akun_tujuan', 'biaya_admin', 'catatan', 'tagihan_id', 'periode', 'sumber', 'dibuat', 'diubah', 'dihapus'],
-    nums: ['nominal', 'biaya_admin'], bools: ['dihapus'],
+    cols: ['id', 'tanggal', 'jam', 'tipe', 'nominal', 'kategori', 'akun', 'akun_tujuan', 'biaya_admin', 'catatan', 'tagihan_id', 'periode', 'sumber', 'dibuat', 'diubah', 'dihapus', 'berulang_id'],
+    nums: ['nominal', 'biaya_admin'], bools: ['dihapus'], dates: ['tanggal'],
   },
   {
     name: 'Rekening', store: 'rekening', key: ['id'],
@@ -24,13 +24,29 @@ export const SHEETS = [
   },
   {
     name: 'Tagihan', store: 'tagihan', key: ['id'],
-    cols: ['id', 'nama', 'nominal', 'tanggal', 'akun', 'kategori', 'aktif', 'dibuat', 'diubah'],
-    nums: ['nominal', 'tanggal'], bools: ['aktif'],
+    cols: ['id', 'nama', 'nominal', 'tanggal', 'akun', 'kategori', 'aktif', 'dibuat', 'diubah', 'tenor', 'cicilan_mulai'],
+    nums: ['nominal', 'tanggal', 'tenor'], bools: ['aktif'], months: ['cicilan_mulai'],
   },
   {
     name: 'Meta', store: 'meta', key: ['key'],
     cols: ['key', 'value'],
     nums: [], bools: [],
+  },
+  // --- v1.1 / v1.2: sheet baru selalu ditambahkan di akhir ---
+  {
+    name: 'Berulang', store: 'berulang', key: ['id'],
+    cols: ['id', 'nama', 'tipe', 'nominal', 'kategori', 'akun', 'akun_tujuan', 'jadwal', 'mulai', 'aktif', 'dibuat', 'diubah', 'dihapus'],
+    nums: ['nominal'], bools: ['aktif', 'dihapus'], dates: ['mulai'],
+  },
+  {
+    name: 'Piutang', store: 'piutang', key: ['id'],
+    cols: ['id', 'transaksi_id', 'nama', 'nominal', 'catatan', 'tanggal', 'lunas_tanggal', 'lunas_akun', 'lunas_transaksi_id', 'dibuat', 'diubah', 'dihapus'],
+    nums: ['nominal'], bools: ['dihapus'], dates: ['tanggal', 'lunas_tanggal'],
+  },
+  {
+    name: 'Target', store: 'target', key: ['id'],
+    cols: ['id', 'nama', 'ikon', 'warna', 'target_nominal', 'target_tanggal', 'rekening_id', 'terkumpul_manual', 'arsip', 'dibuat', 'diubah'],
+    nums: ['target_nominal', 'terkumpul_manual'], bools: ['arsip'], dates: ['target_tanggal'],
   },
 ];
 
@@ -76,15 +92,15 @@ export function fromRow(store, header, arr) {
     if (s.bools.includes(h)) v = v === true || String(v).toUpperCase() === 'TRUE';
     else if (s.nums.includes(h)) v = v === '' ? (h === 'urutan' || h === 'saldo_minimum' ? 0 : 0) : Number(v) || 0;
     else if (typeof v === 'number') {
-      if (h === 'tanggal' && store === 'transaksi') v = serialToISO(v);
+      if (s.dates?.includes(h)) v = serialToISO(v);
       else if (h === 'jam') v = fractionToHHMM(v);
-      else if (h === 'bulan') v = serialToISO(v).slice(0, 7);
+      else if (h === 'bulan' || s.months?.includes(h)) v = serialToISO(v).slice(0, 7);
       else v = String(v);
     } else v = String(v);
     o[h] = v;
   });
   for (const c of s.cols) if (!(c in o)) o[c] = s.bools.includes(c) ? (c === 'aktif') : (s.nums.includes(c) ? 0 : '');
-  if (store === 'tagihan' && header.indexOf('aktif') >= 0 && arr[header.indexOf('aktif')] === '') o.aktif = true;
+  if (s.cols.includes('aktif') && header.indexOf('aktif') >= 0 && (arr[header.indexOf('aktif')] ?? '') === '') o.aktif = true;
   return o;
 }
 

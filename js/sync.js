@@ -2,7 +2,8 @@
 import * as db from './db.js';
 import * as sheets from './sheets.js';
 import * as auth from './auth.js';
-import { SHEETS, SHEET_BY_NAME, keyOf, fromRow, colLetter } from './schema.js';
+import { ensureStructure } from './drive.js';
+import { SHEETS, SHEET_BY_NAME, SCHEMA_VERSION, keyOf, fromRow, colLetter } from './schema.js';
 import { state, emit, replaceStore, setApp, runAutomations, onWrite } from './store.js';
 
 const rowMaps = {}; // nama sheet → Map(key → nomor baris)
@@ -10,6 +11,18 @@ const rowMaps = {}; // nama sheet → Map(key → nomor baris)
 const localList = store => (store === 'meta'
   ? Object.entries(state.meta).map(([key, value]) => ({ key, value, _k: key }))
   : state[store]);
+
+// Setelah aplikasi diperbarui, pastikan sheet & kolom baru sudah ada sebelum membaca/menulis.
+// Hanya menambah (sheet/kolom/header); data lama tidak disentuh. Sekali per versi struktur.
+let ensuring = null;
+export function ensureSchema() {
+  if ((state.schemaOk || 0) >= SCHEMA_VERSION) return Promise.resolve();
+  if (!ensuring) ensuring = (async () => {
+    await ensureStructure(state.spreadsheetId);
+    await setApp({ schemaOk: SCHEMA_VERSION });
+  })().finally(() => { ensuring = null; });
+  return ensuring;
+}
 
 export async function pull() {
   const id = state.spreadsheetId;
@@ -75,6 +88,7 @@ async function doFlush() {
   const id = state.spreadsheetId;
   state.syncing = true; emit();
   try {
+    await ensureSchema();
     await refreshKeys([...new Set(ops.map(o => o.sheet))]);
     const updates = [];
     const appends = new Map(); // sheet → ops
@@ -122,6 +136,7 @@ export function syncAll() {
     if (!auth.getToken()) { state.needsAuth = true; emit(); return; }
     state.syncing = true; emit();
     try {
+      await ensureSchema();
       await flush();
       await pull();
       await runAutomations();

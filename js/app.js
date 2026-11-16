@@ -6,6 +6,7 @@ import { apply as applyTheme, onThemeChange } from './theme.js';
 import { todayISO, ym } from './dates.js';
 import { billsForMonth, billsDueSoon, activeAccounts } from './model.js';
 import { GOOGLE_CLIENT_ID } from '../config.js';
+import { SCHEMA_VERSION } from './schema.js';
 import beranda from './screens/beranda.js';
 import riwayat from './screens/riwayat.js';
 import catat from './screens/catat.js';
@@ -14,11 +15,15 @@ import aturRekening from './screens/atur-rekening.js';
 import laporan from './screens/laporan.js';
 import pengaturan from './screens/pengaturan.js';
 import onboarding, { onboardingState } from './screens/onboarding.js';
+import berulang from './screens/berulang.js';
+import rekap from './screens/rekap.js';
+import * as lock from './lock.js';
+import { maybeBalanceCheck } from './balance-check.js';
 import * as auth from './auth.js';
 import * as sync from './sync.js';
 import * as drive from './drive.js';
 import { esc } from './format.js';
-import { toast, confirmSheet } from './ui.js';
+import { toast, confirmSheet, countUp } from './ui.js';
 
 const ROUTES = [
   [/^beranda$/, beranda, 'beranda'],
@@ -27,7 +32,9 @@ const ROUTES = [
   [/^rekening$/, rekening, 'rekening'],
   [/^rekening\/atur\/([^/]+)$/, aturRekening, null, ['id']],
   [/^laporan$/, laporan, 'laporan'],
+  [/^pengaturan\/berulang$/, berulang, null],
   [/^pengaturan(?:\/(kategori))?$/, pengaturan, null, ['sub']],
+  [/^rekap\/(\d{4}-\d{2})$/, rekap, null, ['month']],
   [/^onboarding$/, onboarding, null],
 ];
 
@@ -105,7 +112,7 @@ app.loginGoogle = () => {
     const user = await drive.aboutUser();
     const { id } = await drive.findOrCreate();
     if (state.spreadsheetId && state.spreadsheetId !== id) await store.resetAll();
-    await store.setApp({ mode: 'google', user, spreadsheetId: id, needsAuth: false });
+    await store.setApp({ mode: 'google', user, spreadsheetId: id, needsAuth: false, schemaOk: SCHEMA_VERSION });
     try { localStorage.setItem('okane_hint', user.email); } catch {}
     onboardingState.setBusy('Mengambil data…'); render();
     await sync.pull();
@@ -127,12 +134,21 @@ app.logout = async () => {
   const text = state.pending
     ? `Ada ${state.pending} perubahan yang belum tersinkron dan akan hilang. Tetap keluar?`
     : google ? 'Data di HP ini dihapus. Data di Google Sheets tetap aman dan bisa dibuka lagi saat masuk.' : 'Semua data mode lokal di HP ini akan dihapus.';
-  if (!await confirmSheet({ title: 'Keluar dari okane?', text, ok: 'Keluar', danger: true })) return;
+  if (!await confirmSheet({ title: 'Keluar dari okane?', text, ok: 'Keluar', danger: true })) return false;
   if (google) await auth.revoke();
   await store.resetAll();
   try { localStorage.removeItem('okane_hint'); localStorage.removeItem('privacy'); } catch {}
   go('#/onboarding', { replace: true });
+  return true;
 };
+
+// Lupa PIN: hapus data lokal (termasuk PIN) lalu masuk ulang. Data di Google Sheets tetap aman.
+async function forgotPin() {
+  document.body.classList.add('over-lock');
+  const ok = await app.logout();
+  document.body.classList.remove('over-lock');
+  if (ok) lock.dismiss();
+}
 
 function render() {
   if (!current) return;
@@ -167,8 +183,10 @@ function route() {
   current = { ...found, query, path };
   document.body.classList.toggle('no-nav', !found.tab);
   current.screen.enter?.(query, found.params);
-  render();
-  window.scrollTo(0, 0);
+  const paint = () => { render(); window.scrollTo(0, 0); countUp(view); };
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (document.startViewTransition && !still && view.childElementCount) document.startViewTransition(paint); else paint();
+  if (path === 'beranda') setTimeout(maybeBalanceCheck, 700);
 }
 
 const NAV = [['beranda', 'home', 'Beranda'], ['riwayat', 'list', 'Riwayat'], null, ['rekening', 'wallet', 'Rekening'], ['laporan', 'chart', 'Laporan']];
@@ -184,9 +202,12 @@ function renderNav() {
 store.subscribe(() => { if (current?.screen.live) render(); else { renderNav(); renderBanner(); } });
 onThemeChange(() => { if (current?.screen.live) render(); });
 window.addEventListener('hashchange', route);
+window.addEventListener('okane:rerender', () => render());
 
 async function boot() {
   applyTheme();
+  // layar kunci tampil dulu, sebelum data digambar
+  try { await lock.initLock({ onForgot: forgotPin, onUnlock: () => { if (current?.path === 'beranda') setTimeout(maybeBalanceCheck, 400); } }); } catch (e) { console.warn('[lock]', e); }
   try { await store.init(); } catch (e) { console.error(e); view.innerHTML = '<p class="empty">Penyimpanan HP tidak tersedia. Coba buka di browser biasa (bukan mode samaran).</p>'; return; }
   if (state.mode === 'google') { state.needsAuth = true; }
   route();
