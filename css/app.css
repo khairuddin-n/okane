@@ -709,3 +709,58 @@ a.row { color: var(--text); }
 .row .mid:only-child, .row .mid { justify-content: center; }
 .cat-top { justify-content: center; }
 .cat-row .ft { justify-content: flex-end; }
+
+/* ======================================================================
+   v2.2 · Skala huruf tunggal. Semua ukuran di atas diselaraskan ke sini.
+   11 mikro · 12 keterangan · 13 sekunder · 14 kontrol · 15 isi · 16 input
+   17 judul kartu · 18 judul sub-layar · 20 angka sedang · 24 angka besar
+   28 judul layar & angka kartu · 40 angka utama
+   ====================================================================== */
+:root { --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-15: 15px; --fs-16: 16px; --fs-17: 17px; --fs-18: 18px; --fs-20: 20px; --fs-24: 24px; --fs-28: 28px; --fs-40: 40px; }
+
+/* 11 · mikro: navigasi, sumbu grafik, label paling kecil */
+.nav a, .pace-x, .acc-card .jn, .donut-c small, .wk small, .today-b small, .sum .ring b small, .auto-tag { font-size: var(--fs-11); }
+
+/* 12 · keterangan: label di atas angka, legenda, lencana */
+.mini span, .badge, .kv span, .chip small, .chip.acc small, .cat, .auto-badge, .row .amt small, .legend, .cat-row .ft,
+.hstats span, .flow span, .sync, .rw-sum span, .insc small, .today-t small, .version, .inst small, .tal .label,
+.bc-in small, .recap .rb span, .delta, .cat-row .hd .mid small { font-size: var(--fs-12); }
+
+/* 13 · sekunder: sub-baris, label field, petunjuk */
+.row .meta, .li .meta, .top .sub, .field > span, .label, .group-t, .hdr .lbl, .hero .lbl, .hero-sub, .chart-foot span,
+.acc-mini .nm, .avatar, .banner, .tgt-h .meta, .tgt-f, .tgt-e, .bc-row .mid span, .today-t span, .pill-link, .pill,
+.insc .l, .recap-strip a span, .hint, .privacy-note, .paid-tag, .btn.sm, .quick .chip, .seg.sm button, .err, .lock-msg,
+.act, .acc-card .ket, .sum .txt .s, .sum .txt .l, .ins .t, .ins .d, .theme-opt, .rw-sum b, .recap .rl, .chip.opt { font-size: var(--fs-13); }
+
+/* 14 · kontrol: chip, segmen, tautan, toast */
+.link, .seg button, .chip, .toast, .empty, .lock-forgot, .recap .rh { font-size: var(--fs-14); }
+
+/* 15 · isi: judul baris, angka di baris, tombol */
+body, .row .ttl, .row .amt, .li .ttl, .btn, .cat-row .hd .mid, .tgt-h .ttl, .mini b, .kv b, .flow b, .mpick b,
+.inline-field > span, .inline-field input, .money::before, .tgt-f b, .recap-strip a b, .rule b, .hstats b, .hero .hstats b,
+.priv-list, .tal-me, .recap .ri { font-size: var(--fs-15); }
+
+/* 16 · input & tombol besar (16px mencegah zoom otomatis di iOS) */
+.input, .btn.big { font-size: var(--fs-16); }
+
+/* 17–18 · judul */
+.card-h h2, .sec-h h2, .acc-mini .sl, .bill-date b, .tal-me b, .today-b b { font-size: var(--fs-17); }
+.top.with-back h1, .sheet-h h2, .acc-card .nm { font-size: var(--fs-18); }
+
+/* 20–24 · angka sedang/besar */
+.insc b, .ins .v, .donut-c b, .recap .rb b, .lock h1 { font-size: var(--fs-20); }
+.today-t b, .sum .ring b { font-size: var(--fs-24); }
+
+/* 28 · judul layar & angka utama kartu */
+.top h1, .onb h1, .recap h2, .acc-card .sl, .sum .txt .big, .hero-top h1 { font-size: var(--fs-28); }
+
+/* 40 · angka utama (Total balance, Spending) */
+.hero .total, .total { font-size: var(--fs-40); }
+
+/* bobot: judul & angka 700, isi 600, sekunder 400–500 */
+.top h1, .top.with-back h1, .sheet-h h2, .card-h h2, .sec-h h2, .onb h1, .hero .total { font-weight: 700; }
+.row .meta, .li .meta, .top .sub, .hint, .privacy-note { font-weight: 400; }
+/* Kotak statistik di header: 3 kolom sempit → angka 14px, tidak dipotong */
+.hero .hstats { gap: 6px; }
+.hero .hstats > div { padding: 9px 10px; }
+.hero .hstats b { font-size: var(--fs-14); letter-spacing: -.02em; overflow: visible; text-overflow: clip; }

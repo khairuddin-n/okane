@@ -1,7 +1,7 @@
 import { svg } from '../icons.js';
 import { esc, rupiah, compact, monthLong, monthShort, pct, isPrivate } from '../format.js';
 import { todayISO, ym, addMonths, daysInMonth, dayOf } from '../dates.js';
-import { budgetFor, totalBudget, spentInMonth, dailySpending, categoryReport, insights, cashflow, cumulativeSpending, forecastMonth, weekdayPattern, topNotes, biggestExpense, noSpendDays, num } from '../model.js';
+import { budgetFor, totalBudget, spentInMonth, dailySpending, categoryReport, insights, cashflow, cumulativeSpending, weekdayPattern, topNotes, biggestExpense, noSpendDays, num } from '../model.js';
 import { donut, pace } from '../charts.js';
 import { catTile, catStyle, openSheet, moneyInput, bindMoney, toast, money } from '../ui.js';
 import { state, saveBudget, statTx } from '../store.js';
@@ -73,7 +73,7 @@ function catCard(m) {
       ${bar || ft ? `<div class="bt">${bar}${ft}</div>` : ''}</a>`;
   }).join('');
   return `<section class="card">
-    <div class="card-h"><h2>Categories</h2><button class="btn sm" data-act="budget">Set budget</button></div>
+    <div class="card-h"><h2>Categories</h2><button class="btn sm" data-act="budget">${Object.keys(budgetFor(state.budget, m)).length ? 'Edit budget' : 'Set budget'}</button></div>
     ${ring}
     ${list || '<p class="empty">No spending yet.</p>'}
   </section>`;
@@ -137,14 +137,13 @@ export default {
     const dim = daysInMonth(m);
     const d = isCur ? dayOf(today) : dim;
     const prevM = addMonths(m, -1);
-    const fc = forecastMonth(tx, m, today);
     const b = insights(tx, state.budget, m, today).banding;
     const rest = tb - spent;
     const left = dim - d + 1;
     let cells;
-    if (tb > 0 && isCur) cells = [[rest >= 0 ? 'Left' : 'Over', rupiah(Math.abs(rest))], ['Safe per day', rupiah(Math.max(0, rest) / left)], ['Forecast', rupiah(fc.projected), fc.projected > tb]];
+    if (tb > 0 && isCur) cells = [[rest >= 0 ? 'Left' : 'Over', rupiah(Math.abs(rest))], ['Safe per day', rupiah(Math.max(0, rest) / left)], ['Avg/day', rupiah(spent / d)]];
     else if (tb > 0) cells = [[rest >= 0 ? 'Left' : 'Over', rupiah(Math.abs(rest))], ['Budget', rupiah(tb)], ['Avg/day', rupiah(spent / dim)]];
-    else cells = [['Avg/day', rupiah(spent / d)], [isCur ? 'Forecast' : 'Total', rupiah(fc.projected)], ['No-spend days', `${noSpendDays(tx, m, today)}`]];
+    else cells = [['Avg/day', rupiah(spent / d)], ['Last month', rupiah(spentInMonth(tx, prevM))], ['No-spend days', `${noSpendDays(tx, m, today)}`]];
     const cmp = b.upto && b.prevTotal > 0 && b.pct !== 0
       ? `<span class="delta ${b.hemat ? 'up' : 'down'}">${svg(b.hemat ? 'arrowDown' : 'arrowUp', 14)}<span class="num">${pct(Math.abs(b.pct))}</span><em>vs ${monthShort(prevM)}</em></span>` : '';
     return `
@@ -158,7 +157,7 @@ export default {
         </div>
         <div class="lbl">Spending</div>
         <div class="total-row"><span class="total num">${money(spent)}</span></div>
-        <div class="hero-sub">${tb > 0 ? `<span class="num">${pct(spent / tb)} of ${rupiah(tb)}</span>` : `<button class="pill" data-act="budget">Set budget</button>`}${cmp}</div>
+        <div class="hero-sub">${tb > 0 ? `<span class="num">${pct(spent / tb)} of ${rupiah(tb)}</span>` : ''}${cmp}</div>
         <div class="hero-pace">${pace(cumulativeSpending(tx, m), cumulativeSpending(tx, prevM), { budget: tb, upto: d, label: 'Cumulative spending pace' })}
           <div class="pace-x"><span>1</span><span>${Math.round(dim / 2)}</span><span>${dim}</span></div></div>
         <div class="hstats">${cells.map(([l, v, bad]) => `<div><span>${l}</span><b class="num ${bad ? 'bad' : ''}">${v}</b></div>`).join('')}</div>

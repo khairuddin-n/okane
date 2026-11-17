@@ -16,8 +16,7 @@ function todayCard(tx, today, tb) {
     const avg = spentInMonth(tx, m) / dayOf(today);
     return `<a class="card today" href="#/laporan">
       <span class="tile lg c-hijau">${svg('chart', 24)}</span>
-      <div class="today-t"><span>Spent today</span><b class="num">${rupiah(spentToday)}</b><small class="num">Avg ${rupiah(avg)}/day</small></div>
-      <span class="pill-link">Set budget</span></a>`;
+      <div class="today-t"><span>Spent today</span><b class="num">${rupiah(spentToday)}</b><small class="num">Avg ${rupiah(avg)}/day</small></div></a>`;
   }
   const before = spentInMonth(tx, m) - spentToday;
   const jatah = Math.max(0, (tb - before) / daysLeftInclToday(today));
@@ -112,7 +111,7 @@ export default {
         ${upcomingHTML(state, today)}
         <section class="card">
           <div class="card-h"><h2>Recent</h2><a class="link" href="#/riwayat">All ${svg('chevronRight', 16)}</a></div>
-          ${recent.length ? `<div class="rows">${recent.map(t => txRow(t)).join('')}</div>` : '<p class="empty">Tap + to add a transaction.</p>'}
+          ${recent.length ? `<div class="rows">${recent.map(t => txRow(t, { when: 'date' })).join('')}</div>` : '<p class="empty">Tap + to add a transaction.</p>'}
         </section>
       </div>`;
   },

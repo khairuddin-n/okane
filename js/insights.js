@@ -1,7 +1,7 @@
 // Kartu insight: aturan sederhana di atas fungsi murni model.js. Semua dihitung di HP, tanpa jaringan.
 import { rupiah, pct, monthShort, compact } from './format.js';
 import { ym, dayOf, addMonths } from './dates.js';
-import { budgetFor, totalBudget, forecastMonth, categoryMovers, topNotes, biggestExpense, lowBalances, openDebts, debtTotal, logStreak, noSpendDays, spentInMonth } from './model.js';
+import { categoryMovers, topNotes, biggestExpense, lowBalances, openDebts, debtTotal, logStreak, noSpendDays, spentInMonth } from './model.js';
 import { state, statTx } from './store.js';
 import { catStyle } from './ui.js';
 
@@ -19,19 +19,8 @@ export function buildInsights(today) {
     out.push({ tone: 'warn', ikon: 'bank', warna: 'oranye', label: `${r.nama} below minimum`, value: rupiah(r.saldo), sub: `Minimum ${compact(r.saldo_minimum)}`, href: `#/rekening?id=${encodeURIComponent(r.id)}` });
   }
 
-  const tb = totalBudget(budgetFor(state.budget, m));
-  const fc = forecastMonth(tx, m, today);
-  if (fc.spent > 0 && day >= 3) {
-    if (tb > 0) {
-      const over = fc.projected - tb;
-      out.push(over > 0
-        ? { tone: 'warn', ikon: 'investasi', warna: 'oranye', label: 'Month-end forecast', value: rupiah(fc.projected), sub: `${compact(over)} over budget`, href: '#/laporan' }
-        : { tone: 'good', ikon: 'investasi', warna: 'hijau', label: 'Month-end forecast', value: rupiah(fc.projected), sub: `${compact(-over)} under budget`, href: '#/laporan' });
-    } else {
-      const prev = spentInMonth(tx, addMonths(m, -1));
-      out.push({ tone: 'info', ikon: 'investasi', warna: 'biru', label: 'Month-end forecast', value: rupiah(fc.projected), sub: prev > 0 ? `${monthShort(addMonths(m, -1))} ${compact(prev)}` : `${compact(fc.avg)}/day`, href: '#/laporan' });
-    }
-  }
+  // Tanpa perkiraan akhir bulan: satu transaksi besar membuat proyeksi menyesatkan.
+  const spent = spentInMonth(tx, m);
 
   const mv = categoryMovers(tx, m, today).find(x => Math.abs(x.diff) >= 50000 && Math.abs(x.diff) / x.prev >= 0.2);
   if (mv) {
@@ -44,7 +33,7 @@ export function buildInsights(today) {
   if (note && note.count >= 3) out.push({ tone: 'info', ikon: 'repeat', warna: 'ungu', label: `${note.catatan} · ${note.count}×`, value: rupiah(note.total), sub: `${compact(note.total / note.count)} each`, href: '#/laporan' });
 
   const big = biggestExpense(tx, m);
-  if (big && fc.spent > 0 && big.nominal / fc.spent >= 0.15) {
+  if (big && spent > 0 && big.nominal / spent >= 0.15) {
     const st = catStyle('keluar', big.kategori);
     out.push({ tone: 'info', ikon: st.ikon, warna: st.warna, label: 'Biggest this month', value: rupiah(big.nominal), sub: big.catatan || big.kategori, href: `#/catat?id=${encodeURIComponent(big.id)}` });
   }

@@ -25,7 +25,7 @@ function piutangDetail(debts, today) {
   return `<div class="pad"><section class="card" style="padding:6px 16px"><div class="rows">${debts.map(p => `<div class="row">
     <span class="tile c-violet" style="font-weight:800;font-size:13px">${esc(initials(p.nama))}</span>
     <span class="mid"><span class="ttl">${esc(p.nama)}</span><span class="meta">${esc([p.catatan, dayHeader(p.tanggal, today).split(' · ')[0]].filter(Boolean).join(' · '))}</span></span>
-    <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><b class="num" style="font-size:14px">${rupiah(p.nominal)}</b>
+    <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><b class="num" style="font-size:15px">${rupiah(p.nominal)}</b>
       <button class="btn primary sm" data-lunas="${esc(p.id)}">Paid back</button></span></div>`).join('')}</div></section></div>`;
 }
 
@@ -73,7 +73,7 @@ function saldoTab(bal, today) {
       </div></div>
       <div class="pad" style="margin-top:14px"><section class="card">
         <div class="card-h"><h2>Activity</h2><a class="link" href="#/riwayat?akun=${esc(r.id)}">All ${svg('chevronRight', 16)}</a></div>
-        ${sched || txs.length ? `<div class="rows">${sched}${txs.map(t => txRow(t)).join('')}</div>` : '<p class="empty">No activity yet.</p>'}
+        ${sched || txs.length ? `<div class="rows">${sched}${txs.map(t => txRow(t, { when: 'date' })).join('')}</div>` : '<p class="empty">No activity yet.</p>'}
       </section></div>`;
   }
   const chips = [['all', 'All'], ['bank', 'Bank'], ['ewallet', 'E-wallet'], ['tunai', 'Cash']];
@@ -101,7 +101,7 @@ function tagihanTab(total, today) {
   return `<div class="pad stack">
     <section class="card">
       <div class="muted" style="font-size:13px;font-weight:500">Free after bills</div>
-      <div class="num" style="font-size:28px;font-weight:800;letter-spacing:-.03em;margin:2px 0 12px">${money(free)}</div>
+      <div class="num" style="font-size:28px;font-weight:700;letter-spacing:-.03em;margin:2px 0 12px">${money(free)}</div>
       <div class="split"><i style="flex:${freeShare};background:var(--primary)"></i><i style="flex:${1 - freeShare};background:var(--warn)"></i></div>
       <div class="legend"><span><i style="background:var(--warn)"></i>Unpaid<b class="num">${rupiah(unpaid)}</b></span></div>
     </section>
@@ -111,7 +111,7 @@ function tagihanTab(total, today) {
         return `<div class="row">
           <button class="bill-date ${b.lunas ? 'paid' : soon ? 'soon' : ''}" data-bill="${esc(b.id)}" aria-label="Edit bill ${esc(b.nama)}"><b>${dayOf(b.due)}</b><small>${monthShort(m)}</small></button>
           <button class="mid" data-bill="${esc(b.id)}" style="text-align:left"><span class="ttl" style="display:block">${esc(b.nama)}</span><span class="meta" style="display:block">${billMeta(b, today)}</span>${b.cicilan ? `<span class="inst"><span class="bar thin"><i style="width:${Math.min(100, (b.cicilan.paid / b.cicilan.tenor) * 100)}%"></i></span><small>Installment ${Math.min(b.cicilan.tenor, b.cicilan.paid + (b.lunas ? 0 : 1))} of ${b.cicilan.tenor}</small></span>` : ''}</button>
-          <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><b class="num" style="font-size:14px">${rupiah(b.nominal)}</b>
+          <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><b class="num" style="font-size:15px">${rupiah(b.nominal)}</b>
           ${b.lunas ? `<span class="paid-tag">${svg('check', 14)}Paid</span>` : `<a class="btn primary sm" href="#/catat?tagihan=${esc(b.id)}&periode=${m}">Pay</a>`}</span>
         </div>`;
       }).join('')}</div>` : '<p class="empty">No bills yet.</p>'}
@@ -170,7 +170,7 @@ function openAdjust(r, current) {
   openSheet({
     title: `Adjust ${r.nama} balance`,
     body: `<form class="stack" id="af">
-      <p class="muted" style="font-size:13.5px">Balance in okane: <b class="num">${rupiah(current)}</b></p>
+      <p class="muted" style="font-size:13px">Balance in okane: <b class="num">${rupiah(current)}</b></p>
       <label class="field"><span>Actual balance</span>${moneyInput('real', current, 'autofocus')}</label>
       <button class="btn primary big" type="submit">Save</button></form>`,
     onMount(el, close) {

@@ -1,2 +1,2 @@
 // Satu-satunya tempat versi aplikasi. Naikkan setiap rilis (juga dipakai sw.js untuk nama cache).
-self.APP_VERSION = '2.1.1';
+self.APP_VERSION = '2.2.0';

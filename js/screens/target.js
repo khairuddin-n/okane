@@ -88,7 +88,7 @@ function openSetAside(id) {
   openSheet({
     title: `Set aside · ${t.nama}`,
     body: `<form class="stack" id="sf">
-      <p class="muted" style="font-size:13.5px">Saved so far <b class="num">${rupiah(cur)}</b></p>
+      <p class="muted" style="font-size:13px">Saved so far <b class="num">${rupiah(cur)}</b></p>
       <label class="field"><span>Amount</span>${moneyInput('n', 0, 'autofocus')}</label>
       <div class="row2"><button class="btn ghost" type="button" data-act="minus">Take out</button><button class="btn primary" type="submit">Add</button></div>
     </form>`,

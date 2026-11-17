@@ -1,6 +1,7 @@
 // Komponen UI bersama: tile, baris transaksi, bottom sheet, toast, input nominal.
 import { svg } from './icons.js';
-import { esc, rupiah, group, parseAmount, isPrivate, MASK } from './format.js';
+import { esc, rupiah, group, parseAmount, isPrivate, MASK, fmtDayMonth } from './format.js';
+import { todayISO, diffDays } from './dates.js';
 import { state, findCategory, findAccount } from './store.js';
 import { ADMIN_CATEGORY } from './model.js';
 
@@ -61,14 +62,20 @@ export function txAmount(t) {
   return `<span class="muted">${rupiah(t.nominal, { sign: true })}</span>`;
 }
 
-export function txRow(t, { showDate = false } = {}) {
-  // Baris kedua hanya kalau menambah informasi (rekening & kategori tidak ditulis; ada di ikon, detail, dan filter).
+// when: 'time' (daftar yang sudah dikelompokkan per hari) | 'date' (hari singkat + jam)
+const shortDay = iso => { const d = diffDays(iso, todayISO()); return d === 0 ? 'Today' : d === 1 ? 'Yesterday' : fmtDayMonth(iso); };
+
+export function txRow(t, { when = 'time' } = {}) {
+  // Baris kedua = kapan (seperti aplikasi bank/dompet). Kategori & rekening tidak ditulis ulang: ikon sudah menunjukkan kategori.
   const note = String(t.catatan || '').trim();
+  const auto = t.sumber === 'otomatis';
+  const time = auto ? '' : String(t.jam || '');
   const parts = [];
-  // kategori tidak ditulis ulang: ikonnya sudah menunjukkan kategori
+  if (when === 'date') parts.push(time ? `${shortDay(t.tanggal)}, ${time}` : shortDay(t.tanggal));
+  else if (time) parts.push(time);
+  if (auto) parts.push('Auto');
   if (t.tipe === 'transfer' && note) parts.push(`${accName(t.akun)} → ${accName(t.akun_tujuan)}`);
   if (t.tipe === 'keluar' && state.piutang.some(p => p.transaksi_id === t.id && !p.dihapus)) parts.push('Split');
-  if (showDate) parts.push(`${t.tanggal.slice(8, 10)}/${t.tanggal.slice(5, 7)}`);
   const fee = t.tipe === 'transfer' && Number(t.biaya_admin) > 0 ? `<small>fee ${rupiah(t.biaya_admin)}</small>` : '';
   return `<button class="row" data-tx="${esc(t.id)}">
     ${catTile(t.tipe, t.kategori)}
