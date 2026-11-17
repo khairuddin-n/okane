@@ -71,23 +71,23 @@ function pinPad({ mode, onForgot }) {
     el.className = 'lock';
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-modal', 'true');
-    el.setAttribute('aria-label', mode === 'unlock' ? 'Aplikasi terkunci' : 'Buat PIN');
+    el.setAttribute('aria-label', mode === 'unlock' ? 'App locked' : 'Create PIN');
     let pin = '', first = '', fails = 0, busy = false, bio = false;
-    const title = () => (mode === 'unlock' ? 'Masukkan PIN' : first ? 'Ulangi PIN' : 'Buat PIN 6 digit');
+    const title = () => (mode === 'unlock' ? 'Enter PIN' : first ? 'Confirm PIN' : 'Create a 6-digit PIN');
     const draw = (msg = '') => {
       el.innerHTML = `
-        ${mode === 'create' ? `<button class="icon-btn lock-x" data-k="cancel" aria-label="Batal">${svg('x')}</button>` : ''}
+        ${mode === 'create' ? `<button class="icon-btn lock-x" data-k="cancel" aria-label="Cancel">${svg('x')}</button>` : ''}
         <div class="lock-top"><span class="lock-logo">${coin(34)}</span>
           <h1 id="lock-t">${title()}</h1>
-          <div class="pin-dots ${msg ? 'bad' : ''}" aria-label="${pin.length} dari ${LEN} digit">${Array.from({ length: LEN }, (_, i) => `<i class="${i < pin.length ? 'on' : ''}"></i>`).join('')}</div>
+          <div class="pin-dots ${msg ? 'bad' : ''}" aria-label="${pin.length} of ${LEN} digits">${Array.from({ length: LEN }, (_, i) => `<i class="${i < pin.length ? 'on' : ''}"></i>`).join('')}</div>
           <p class="lock-msg" role="status">${msg}</p></div>
         <div class="keypad">
           ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button data-k="${n}">${n}</button>`).join('')}
-          ${bio ? `<button data-k="bio" class="alt" aria-label="Buka dengan sidik jari">${svg('finger', 26)}</button>` : '<span></span>'}
+          ${bio ? `<button data-k="bio" class="alt" aria-label="Unlock with fingerprint">${svg('finger', 26)}</button>` : '<span></span>'}
           <button data-k="0">0</button>
-          <button data-k="del" class="alt" aria-label="Hapus">${svg('backspace', 26)}</button>
+          <button data-k="del" class="alt" aria-label="Delete">${svg('backspace', 26)}</button>
         </div>
-        ${mode === 'unlock' ? '<button class="lock-forgot" data-k="forgot">Lupa PIN?</button>' : '<span class="lock-forgot"></span>'}`;
+        ${mode === 'unlock' ? '<button class="lock-forgot" data-k="forgot">Forgot PIN?</button>' : '<span class="lock-forgot"></span>'}`;
     };
     const finish = v => {
       document.removeEventListener('keydown', onKey, true);
@@ -100,16 +100,16 @@ function pinPad({ mode, onForgot }) {
       if (mode === 'create') {
         if (!first) { first = pin; pin = ''; draw(); }
         else if (pin === first) { finish(pin); return; }
-        else { first = ''; pin = ''; draw('PIN tidak sama, ulangi'); }
+        else { first = ''; pin = ''; draw('PINs don’t match, try again'); }
       } else if (await verifyPin(pin)) { finish(true); return; }
       else {
         fails++; pin = '';
         if (fails >= 5) {
           let left = 30;
-          draw(`Terlalu banyak percobaan. Tunggu ${left} detik`);
-          await new Promise(r => { const t = setInterval(() => { left--; const m = el.querySelector('.lock-msg'); if (m) m.textContent = `Terlalu banyak percobaan. Tunggu ${left} detik`; if (left <= 0) { clearInterval(t); r(); } }, 1000); });
+          draw(`Too many attempts. Wait ${left}s`);
+          await new Promise(r => { const t = setInterval(() => { left--; const m = el.querySelector('.lock-msg'); if (m) m.textContent = `Too many attempts. Wait ${left}s`; if (left <= 0) { clearInterval(t); r(); } }, 1000); });
           fails = 0; draw();
-        } else draw('PIN salah');
+        } else draw('Wrong PIN');
       }
       busy = false;
     };

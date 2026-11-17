@@ -2,6 +2,7 @@
 import { svg } from './icons.js';
 import { esc, rupiah, group, parseAmount, isPrivate, MASK } from './format.js';
 import { state, findCategory, findAccount } from './store.js';
+import { ADMIN_CATEGORY } from './model.js';
 
 // Angka besar: "Rp" kecil di depan, angka tebal
 export function money(n, { sign = false } = {}) {
@@ -28,14 +29,14 @@ export function countUp(root) {
   });
 }
 
-export const JENIS = { bank: 'Bank', ewallet: 'E-wallet', tunai: 'Tunai' };
+export const JENIS = { bank: 'Bank', ewallet: 'E-wallet', tunai: 'Cash' };
 
 export function catStyle(tipe, nama) {
   if (tipe === 'transfer') return { ikon: 'transfer', warna: 'indigo' };
   if (tipe === 'penyesuaian') return { ikon: 'adjust', warna: 'abu' };
   if (tipe === 'pelunasan') return { ikon: 'people', warna: 'violet' };
   const k = findCategory(tipe, nama);
-  return k ? { ikon: k.ikon || 'lainnya', warna: k.warna || 'abu' } : { ikon: nama === 'Biaya bank' ? 'bank' : 'lainnya', warna: nama === 'Biaya bank' ? 'teal' : 'abu' };
+  return k ? { ikon: k.ikon || 'lainnya', warna: k.warna || 'abu' } : { ikon: nama === ADMIN_CATEGORY ? 'bank' : 'lainnya', warna: nama === ADMIN_CATEGORY ? 'teal' : 'abu' };
 }
 
 export function tile(ikon, warna, size = '') {
@@ -48,9 +49,9 @@ export const accName = id => findAccount(id)?.nama || '—';
 
 export function txTitle(t) {
   if (t.tipe === 'transfer') return t.catatan || `${accName(t.akun)} → ${accName(t.akun_tujuan)}`;
-  if (t.tipe === 'penyesuaian') return t.catatan || 'Penyesuaian saldo';
-  if (t.tipe === 'pelunasan') return t.catatan || 'Piutang dikembalikan';
-  return t.catatan || t.kategori || 'Transaksi';
+  if (t.tipe === 'penyesuaian') return t.catatan || 'Balance adjustment';
+  if (t.tipe === 'pelunasan') return t.catatan || 'Repayment received';
+  return t.catatan || t.kategori || 'Transaction';
 }
 
 export function txAmount(t) {
@@ -63,12 +64,12 @@ export function txAmount(t) {
 export function txRow(t, { showDate = false } = {}) {
   let meta;
   if (t.tipe === 'transfer') meta = `${esc(accName(t.akun))} → ${esc(accName(t.akun_tujuan))}`;
-  else if (t.tipe === 'penyesuaian') meta = `Penyesuaian · ${esc(accName(t.akun))}`;
-  else if (t.tipe === 'pelunasan') meta = `Piutang · ${esc(accName(t.akun))}`;
+  else if (t.tipe === 'penyesuaian') meta = `Adjustment · ${esc(accName(t.akun))}`;
+  else if (t.tipe === 'pelunasan') meta = `Repayment · ${esc(accName(t.akun))}`;
   else meta = `${esc(t.kategori)} · ${esc(accName(t.akun))}`;
-  meta += ` · ${showDate ? esc(t.tanggal.slice(8, 10) + '/' + t.tanggal.slice(5, 7)) + ' ' : ''}${esc(t.jam || '')}`;
-  const auto = (t.sumber === 'otomatis' ? '<span class="auto-tag">otomatis</span>' : '')
-    + (t.tipe === 'keluar' && state.piutang.some(p => p.transaksi_id === t.id && !p.dihapus) ? '<span class="auto-tag">talangan</span>' : '');
+  if (showDate) meta += ` · ${esc(t.tanggal.slice(8, 10) + '/' + t.tanggal.slice(5, 7))}`;
+  const auto = (t.sumber === 'otomatis' ? '<span class="auto-tag">auto</span>' : '')
+    + (t.tipe === 'keluar' && state.piutang.some(p => p.transaksi_id === t.id && !p.dihapus) ? '<span class="auto-tag">split</span>' : '');
   const admin = t.tipe === 'transfer' && Number(t.biaya_admin) > 0 ? `<small>admin ${rupiah(t.biaya_admin)}</small>` : '';
   return `<button class="row" data-tx="${esc(t.id)}">
     ${catTile(t.tipe, t.kategori)}
@@ -93,7 +94,7 @@ export function toast(msg, { action, onAction, ms = 2600 } = {}) {
 
 // Snackbar dengan tombol Batalkan (5 detik)
 export function undoToast(msg, undo) {
-  toast(msg, { action: 'Batalkan', ms: 5000, onAction: async () => { try { await undo(); toast('Dibatalkan'); } catch (e) { console.warn(e); toast('Gagal membatalkan'); } } });
+  toast(msg, { action: 'Undo', ms: 5000, onAction: async () => { try { await undo(); toast('Undone'); } catch (e) { console.warn(e); toast('Couldn’t undo'); } } });
 }
 
 // ---------- Bottom sheet ----------
@@ -103,7 +104,7 @@ export function openSheet({ title, body, onMount, onClose }) {
   wrap.className = 'sheet-wrap';
   wrap.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
     <div class="grab"></div>
-    <div class="sheet-h"><h2>${esc(title)}</h2><button class="icon-btn" data-close aria-label="Tutup">${svg('x')}</button></div>
+    <div class="sheet-h"><h2>${esc(title)}</h2><button class="icon-btn" data-close aria-label="Close">${svg('x')}</button></div>
     <div class="sheet-b">${body}</div></div>`;
   root.appendChild(wrap);
   const prevFocus = document.activeElement;
@@ -125,13 +126,13 @@ export function openSheet({ title, body, onMount, onClose }) {
   return close;
 }
 
-export function confirmSheet({ title, text, ok = 'Ya', danger = false }) {
+export function confirmSheet({ title, text, ok = 'Yes', danger = false }) {
   return new Promise(resolve => {
     let done = false;
     openSheet({
       title,
       body: `<p class="muted" style="margin-bottom:16px">${esc(text)}</p>
-        <div class="row2"><button class="btn ghost" data-close>Batal</button><button class="btn ${danger ? 'danger' : 'primary'}" data-ok>${esc(ok)}</button></div>`,
+        <div class="row2"><button class="btn ghost" data-close>Cancel</button><button class="btn ${danger ? 'danger' : 'primary'}" data-ok>${esc(ok)}</button></div>`,
       onMount: (el, close) => { el.querySelector('[data-ok]').onclick = () => { done = true; close(); resolve(true); }; },
       onClose: () => { if (!done) resolve(false); },
     });
@@ -157,10 +158,10 @@ export const moneyInput = (name, value, attrs = '') =>
 
 // Teks status sinkron
 export function syncLabel() {
-  if (state.mode === 'local') return { text: 'Mode lokal', cls: 'muted' };
+  if (state.mode === 'local') return { text: 'Local mode', cls: 'muted' };
   if (!navigator.onLine) return { text: 'Offline', cls: 'muted' };
-  if (state.needsAuth) return { text: 'Perlu masuk lagi', cls: 'warn' };
-  if (state.syncing) return { text: 'Menyinkron…', cls: 'muted' };
-  if (state.pending > 0) return { text: `${state.pending} menunggu`, cls: 'warn' };
-  return { text: 'Tersinkron', cls: '' };
+  if (state.needsAuth) return { text: 'Sign in again', cls: 'warn' };
+  if (state.syncing) return { text: 'Syncing…', cls: 'muted' };
+  if (state.pending > 0) return { text: `${state.pending} pending`, cls: 'warn' };
+  return { text: 'Synced', cls: '' };
 }

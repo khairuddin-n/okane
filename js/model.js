@@ -3,7 +3,9 @@
 import { ym, dayOf, daysInMonth, addMonths, addDays, dateIn, diffDays, pad, parseISO } from './dates.js';
 import { CATEGORY_KEYWORDS } from './category-keywords.js';
 
-export const ADMIN_CATEGORY = 'Biaya bank';
+export const ADMIN_CATEGORY = 'Bank Fees';
+export const OTHER_CATEGORY = 'Other';
+export const BILL_CATEGORY = 'Utilities';
 export const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const alive = t => t && !t.dihapus;
 export const monthRange = m => [`${m}-01`, `${m}-${pad(daysInMonth(m))}`];
@@ -54,7 +56,7 @@ export function expenseItems(transaksi, from, to) {
     if (!alive(t)) continue;
     if (from && t.tanggal < from) continue;
     if (to && t.tanggal > to) continue;
-    if (t.tipe === 'keluar') out.push({ tanggal: t.tanggal, kategori: t.kategori || 'Lainnya', nominal: num(t.nominal) });
+    if (t.tipe === 'keluar') out.push({ tanggal: t.tanggal, kategori: t.kategori || OTHER_CATEGORY, nominal: num(t.nominal) });
     else if (t.tipe === 'transfer' && num(t.biaya_admin) > 0) out.push({ tanggal: t.tanggal, kategori: ADMIN_CATEGORY, nominal: num(t.biaya_admin) });
   }
   return out;
@@ -254,7 +256,7 @@ export function applyGuess(sel, guess) {
 
 export function guessLabel(g) {
   if (!g) return '';
-  return g.alasan === 'riwayat' ? '✦ Otomatis dari riwayat' : `✦ Otomatis dari "${g.kata}"`;
+  return g.alasan === 'riwayat' ? '✦ From history' : `✦ From "${g.kata}"`;
 }
 
 // ---------- Tagihan ----------
@@ -337,7 +339,7 @@ export function dueAdminCharges(rekening, transaksi, today) {
       const tx = {
         id, tanggal: d, jam: '00:00', tipe: 'keluar', nominal: Math.min(num(r.admin_nominal), saldo),
         kategori: r.admin_kategori || ADMIN_CATEGORY, akun: r.id, akun_tujuan: '', biaya_admin: 0,
-        catatan: 'Biaya admin bulanan', tagihan_id: '', periode: m, sumber: 'otomatis', dihapus: false,
+        catatan: 'Monthly admin fee', tagihan_id: '', periode: m, sumber: 'otomatis', dihapus: false,
       };
       added.push(tx); out.push(tx);
     }
@@ -402,12 +404,13 @@ export function parseSchedule(jadwal) {
   return null;
 }
 
-const DOW = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+const DOW = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const ordinal = n => `${n}${[11, 12, 13].includes(n % 100) ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
 export function scheduleLabel(jadwal) {
   const p = parseSchedule(jadwal);
   if (!p) return '';
-  if (p.kind === 'mingguan') return `Tiap ${DOW[p.dow - 1]}`;
-  return p.akhir ? 'Tiap akhir bulan' : `Tiap tgl ${p.day}`;
+  if (p.kind === 'mingguan') return `Every ${DOW[p.dow - 1]}`;
+  return p.akhir ? 'Monthly, last day' : `Monthly on the ${ordinal(p.day)}`;
 }
 
 // Jadwal dari sebuah tanggal: bulanan → tanggal itu, mingguan → hari itu
@@ -456,7 +459,7 @@ export function dueRecurring(berulang, transaksi, today, rekening) {
       if (ids.has(id)) continue;
       out.push({
         id, tanggal: o.tanggal, jam: '00:00', tipe: r.tipe, nominal: num(r.nominal),
-        kategori: transfer ? '' : (r.kategori || 'Lainnya'), akun: r.akun, akun_tujuan: transfer ? r.akun_tujuan : '', biaya_admin: 0,
+        kategori: transfer ? '' : (r.kategori || OTHER_CATEGORY), akun: r.akun, akun_tujuan: transfer ? r.akun_tujuan : '', biaya_admin: 0,
         catatan: r.nama || '', tagihan_id: '', periode: o.periode, sumber: 'otomatis', dihapus: false, berulang_id: r.id,
       });
     }
@@ -721,7 +724,7 @@ export function upcoming(tagihan, berulang, rekening, transaksi, today, days = 7
     for (const b of billsForMonth(tagihan, transaksi, m)) {
       if (b.lunas || b.due > until) continue;
       if (b.due < today && m !== ym(today)) continue;
-      out.push({ jenis: 'tagihan', id: b.id, tanggal: b.due, nama: b.nama, nominal: num(b.nominal), tipe: 'keluar', kategori: b.kategori || 'Tagihan', periode: m, lewat: b.due < today });
+      out.push({ jenis: 'tagihan', id: b.id, tanggal: b.due, nama: b.nama, nominal: num(b.nominal), tipe: 'keluar', kategori: b.kategori || BILL_CATEGORY, periode: m, lewat: b.due < today });
     }
   }
   const okAcc = new Set(rekening.filter(r => !r.arsip).map(r => r.id));
@@ -733,7 +736,7 @@ export function upcoming(tagihan, berulang, rekening, transaksi, today, days = 7
   for (const r of rekening) {
     if (r.arsip) continue;
     const n = nextAdminCharge(r, today);
-    if (n && n.tanggal <= until) out.push({ jenis: 'admin', id: r.id, tanggal: n.tanggal, nama: `Admin ${r.nama}`, nominal: n.nominal, tipe: 'keluar', kategori: n.kategori });
+    if (n && n.tanggal <= until) out.push({ jenis: 'admin', id: r.id, tanggal: n.tanggal, nama: `${r.nama} admin fee`, nominal: n.nominal, tipe: 'keluar', kategori: n.kategori });
   }
   return out.sort((a, b) => a.tanggal.localeCompare(b.tanggal) || b.nominal - a.nominal);
 }

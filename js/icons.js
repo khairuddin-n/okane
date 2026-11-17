@@ -2,6 +2,12 @@
 
 // Ikon kategori (dipakai di tile kategori & pemilih ikon)
 export const CATEGORY_ICONS = {
+  keranjang: 'M3 4h2l2.4 11h10.2L20 7H6.2M9 20h.01M17 20h.01',
+  langganan: 'M4 6h16v13H4zM4 10h16M8 3v3M16 3v3M10 14.5l1.5 1.5 3-3',
+  asuransi: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4',
+  pinjaman: 'M3 6h18v12H3zM3 10h18M7 15h4',
+  laptop: 'M5 5h14v10H5zM2 19h20',
+  refund: 'M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3',
   makan: 'M7 3v18M4 3v5a3 3 0 0 0 6 0V3M17 21V3c-2 0-3.5 2.5-3.5 6s1.5 4 3.5 4',
   transport: 'M3 13l2-6h14l2 6v5H3zM3 13h18M7 16h.01M17 16h.01',
   belanja: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',

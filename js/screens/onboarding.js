@@ -22,13 +22,14 @@ function welcome(canGoogle, canLocal) {
     <div class="hero">
       ${LOGO}
       <span class="wordmark">okane</span>
-      <h1>Uangmu, tercatat rapi.</h1>
-      <p>Data tersimpan di Google Sheets milikmu.</p>
+      <h1>Your money, neatly tracked.</h1>
+      <p>Simple daily finance notes that stay with you.</p>
     </div>
     <div class="foot">
       ${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}
-      ${canGoogle ? `<button class="btn google" data-act="google">${GOOGLE_G}<span>Masuk dengan Google</span></button>` : ''}
-      ${canLocal ? `<button class="btn ${canGoogle ? 'ghost' : 'primary'} big" data-act="local">Coba tanpa akun (mode lokal)</button>` : ''}
+      ${canGoogle ? `<button class="btn google" data-act="google">${GOOGLE_G}<span>Sign in with Google</span></button>` : ''}
+      ${canLocal ? `<button class="btn ${canGoogle ? 'ghost' : 'primary'} big" data-act="local">Try without an account (local mode)</button>` : ''}
+      <p class="privacy-note onb-note">${svg('lock', 14)}<span>Your data is saved only to a spreadsheet in your own Google Drive. okane has no server, so the developer can never see it. <a href="./privacy.html" target="_blank" rel="noopener">Privacy</a></span></p>
     </div></div>`;
 }
 
@@ -42,17 +43,17 @@ function accounts() {
   const bal = balances(state.rekening, state.transaksi);
   return `<div class="onb" style="justify-content:flex-start;gap:16px">
     <div><span class="wordmark" style="font-size:28px">okane</span>
-      <h1 style="margin-top:14px">Tambah rekening</h1>
-      <p class="muted" style="margin-top:4px">Bank, e-wallet, atau tunai.</p></div>
+      <h1 style="margin-top:14px">Add your accounts</h1>
+      <p class="muted" style="margin-top:4px">Bank, e-wallet, or cash.</p></div>
     ${accs.length ? `<div class="list" style="margin:0">${accs.map(r => `<div class="li"><span class="tile k-${esc(r.jenis)}" style="color:var(--acc-text)">${svg(r.jenis === 'tunai' ? 'dompet' : r.jenis === 'ewallet' ? 'pulsa' : 'bank')}</span>
       <span class="mid"><span class="ttl">${esc(r.nama)}</span><span class="meta">${JENIS[r.jenis]}</span></span><b class="num">${rupiah(bal.get(r.id))}</b></div>`).join('')}</div>` : ''}
     <form class="card stack" id="accf" autocomplete="off">
-      <label class="field"><span>Nama</span><input class="input" name="nama" placeholder="BCA, GoPay, Dompet…" required></label>
-      <div><div class="label">Jenis</div><div class="seg">${Object.entries(JENIS).map(([k, l]) => `<button type="button" data-jenis="${k}" class="${jenis === k ? 'on' : ''}" aria-pressed="${jenis === k}">${l}</button>`).join('')}</div></div>
-      <label class="field"><span>Saldo saat ini</span>${moneyInput('saldo', 0)}</label>
-      <button class="btn ${accs.length ? 'ghost' : 'primary'} big" type="submit">${svg('plus', 18)} Tambah rekening</button>
+      <label class="field"><span>Name</span><input class="input" name="nama" placeholder="BCA, GoPay, Wallet…" required></label>
+      <div><div class="label">Type</div><div class="seg">${Object.entries(JENIS).map(([k, l]) => `<button type="button" data-jenis="${k}" class="${jenis === k ? 'on' : ''}" aria-pressed="${jenis === k}">${l}</button>`).join('')}</div></div>
+      <label class="field"><span>Current balance</span>${moneyInput('saldo', 0)}</label>
+      <button class="btn ${accs.length ? 'ghost' : 'primary'} big" type="submit">${svg('plus', 18)} Add account</button>
     </form>
-    <div style="margin-top:auto"><button class="btn primary big" data-act="done" ${accs.length ? '' : 'disabled'}>Selesai</button>
+    <div style="margin-top:auto"><button class="btn primary big" data-act="done" ${accs.length ? '' : 'disabled'}>Done</button>
 </div>
   </div>`;
 }
@@ -80,7 +81,7 @@ export default {
       const nama = String(new FormData(form).get('nama') || '').trim();
       if (!nama) return;
       await saveAccount({ nama, jenis, saldo_awal: money.get() });
-      toast(`${nama} ditambahkan`);
+      toast(`${nama} added`);
       jenis = 'bank';
       ctx.rerender();
       root.querySelector('[name="nama"]')?.focus();

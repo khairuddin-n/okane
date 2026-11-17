@@ -28,7 +28,7 @@ describe('saldo', () => {
   });
   test('biaya admin transfer masuk statistik kategori "Biaya bank"; transfer & penyesuaian tidak', () => {
     const by = M.spentByCategory(list, '2026-11');
-    assert.deepEqual(by, { Lainnya: 20_000, 'Biaya bank': 2_500 });
+    assert.deepEqual(by, { Other: 20_000, 'Bank Fees': 2_500 });
     assert.equal(M.spentInMonth(list, '2026-11'), 22_500);
   });
   test('pemasukan bulan ini', () => {
@@ -38,14 +38,14 @@ describe('saldo', () => {
 
 describe('budget', () => {
   const budget = [
-    { bulan: '2026-08', kategori: 'Makan', batas: 1_000_000 },
+    { bulan: '2026-08', kategori: 'Food', batas: 1_000_000 },
     { bulan: '2026-08', kategori: 'Transport', batas: 300_000 },
-    { bulan: '2026-10', kategori: 'Makan', batas: 1_200_000 },
+    { bulan: '2026-10', kategori: 'Food', batas: 1_200_000 },
     { bulan: '2026-10', kategori: 'Transport', batas: 0 },
   ];
   test('carry forward dari bulan terakhir yang punya baris', () => {
-    assert.deepEqual(M.budgetFor(budget, '2026-09'), { Makan: 1_000_000, Transport: 300_000 });
-    assert.deepEqual(M.budgetFor(budget, '2026-12'), { Makan: 1_200_000 });
+    assert.deepEqual(M.budgetFor(budget, '2026-09'), { Food: 1_000_000, Transport: 300_000 });
+    assert.deepEqual(M.budgetFor(budget, '2026-12'), { Food: 1_200_000 });
     assert.deepEqual(M.budgetFor(budget, '2026-07'), {});
     assert.equal(M.totalBudget(M.budgetFor(budget, '2026-09')), 1_300_000);
   });
@@ -76,12 +76,12 @@ describe('statistik', () => {
 
 describe('saran catatan', () => {
   const list = [
-    tx({ tanggal: '2026-11-01', catatan: 'Nasi Padang', kategori: 'Makan', akun: 'a', nominal: 25_000 }),
-    tx({ tanggal: '2026-11-03', catatan: 'Nasi Padang', kategori: 'Makan', akun: 'a', nominal: 25_000 }),
-    tx({ tanggal: '2026-11-04', catatan: 'Nasi goreng', kategori: 'Makan', akun: 'b', nominal: 20_000 }),
-    tx({ tanggal: '2026-11-05', catatan: 'Kopi', kategori: 'Jajan', akun: 'b', nominal: 18_000 }),
-    tx({ tanggal: '2026-06-01', catatan: 'Lama sekali', kategori: 'Makan', akun: 'b', nominal: 1 }),
-    tx({ tanggal: '2026-11-06', catatan: 'Biaya admin bulanan', kategori: 'Biaya bank', sumber: 'otomatis', nominal: 12_500 }),
+    tx({ tanggal: '2026-11-01', catatan: 'Nasi Padang', kategori: 'Food', akun: 'a', nominal: 25_000 }),
+    tx({ tanggal: '2026-11-03', catatan: 'Nasi Padang', kategori: 'Food', akun: 'a', nominal: 25_000 }),
+    tx({ tanggal: '2026-11-04', catatan: 'Nasi goreng', kategori: 'Food', akun: 'b', nominal: 20_000 }),
+    tx({ tanggal: '2026-11-05', catatan: 'Kopi', kategori: 'Snacks', akun: 'b', nominal: 18_000 }),
+    tx({ tanggal: '2026-06-01', catatan: 'Lama sekali', kategori: 'Food', akun: 'b', nominal: 1 }),
+    tx({ tanggal: '2026-11-06', catatan: 'Monthly admin fee', kategori: 'Bank Fees', sumber: 'otomatis', nominal: 12_500 }),
   ];
   test('frequentEntries: kombinasi paling sering dalam 60 hari', () => {
     const f = M.frequentEntries(list, 60, 3, '2026-11-15', 'keluar');
@@ -105,51 +105,51 @@ describe('guessCategory', () => {
     assert.equal(g.kata, 'bensin');
   });
   test('riwayat mengalahkan kamus', () => {
-    const hist = [tx({ catatan: 'Bensin', kategori: 'Lainnya', akun: 'x' })];
+    const hist = [tx({ catatan: 'Bensin', kategori: 'Other', akun: 'x' })];
     const g = M.guessCategory('bensin', 'keluar', hist, KAT);
-    assert.equal(g.kategori, 'Lainnya');
+    assert.equal(g.kategori, 'Other');
     assert.equal(g.alasan, 'riwayat');
     assert.equal(g.akun, 'x');
   });
   test('riwayat berawalan sama & normalisasi tanda baca', () => {
-    const hist = [tx({ catatan: 'Nasi Padang!', kategori: 'Belanja' }), tx({ catatan: 'nasi padang', kategori: 'Belanja' }), tx({ catatan: 'Nasi padang', kategori: 'Makan' })];
-    assert.equal(M.guessCategory('nasi pad', 'keluar', hist, KAT).kategori, 'Belanja');
+    const hist = [tx({ catatan: 'Nasi Padang!', kategori: 'Shopping' }), tx({ catatan: 'nasi padang', kategori: 'Shopping' }), tx({ catatan: 'Nasi padang', kategori: 'Food' })];
+    assert.equal(M.guessCategory('nasi pad', 'keluar', hist, KAT).kategori, 'Shopping');
   });
   test('kata yang sering (≥2 kali, dominan ≥70%)', () => {
-    const hist = [tx({ catatan: 'warung bu tini', kategori: 'Jajan' }), tx({ catatan: 'warung pak budi', kategori: 'Jajan' })];
+    const hist = [tx({ catatan: 'warung bu tini', kategori: 'Snacks' }), tx({ catatan: 'warung pak budi', kategori: 'Snacks' })];
     const g = M.guessCategory('warung baru', 'keluar', hist, KAT);
-    assert.deepEqual([g.kategori, g.alasan, g.kata], ['Jajan', 'kata', 'warung']);
-    const weak = [tx({ catatan: 'warung a', kategori: 'Jajan' }), tx({ catatan: 'warung b', kategori: 'Makan' })];
+    assert.deepEqual([g.kategori, g.alasan, g.kata], ['Snacks', 'kata', 'warung']);
+    const weak = [tx({ catatan: 'warung a', kategori: 'Snacks' }), tx({ catatan: 'warung b', kategori: 'Food' })];
     assert.equal(M.guessCategory('warung c', 'keluar', weak, KAT), null);
   });
   test('tipe masuk tidak menebak kategori keluar', () => {
     assert.equal(M.guessCategory('bensin', 'masuk', [], KAT), null);
-    const hist = [tx({ catatan: 'bonus', kategori: 'Makan', tipe: 'keluar' })];
+    const hist = [tx({ catatan: 'bonus', kategori: 'Food', tipe: 'keluar' })];
     assert.equal(M.guessCategory('bonus', 'masuk', hist, KAT).kategori, 'Bonus');
     assert.equal(M.guessCategory('gaji', 'keluar', [], KAT), null);
   });
   test('"grab" + "food" menebak Makan, bukan Transport (frasa terpanjang menang)', () => {
-    assert.equal(M.guessCategory('grab food', 'keluar', [], KAT).kategori, 'Makan');
+    assert.equal(M.guessCategory('grab food', 'keluar', [], KAT).kategori, 'Food');
     assert.equal(M.guessCategory('grab', 'keluar', [], KAT).kategori, 'Transport');
     const hist = [tx({ catatan: 'grab ke kantor', kategori: 'Transport' }), tx({ catatan: 'grab pulang', kategori: 'Transport' })];
-    assert.equal(M.guessCategory('grab food', 'keluar', hist, KAT).kategori, 'Makan');
+    assert.equal(M.guessCategory('grab food', 'keluar', hist, KAT).kategori, 'Food');
   });
   test('kamus hanya untuk kategori aktif', () => {
     const kat = KAT.map(k => (k.nama === 'Transport' ? { ...k, arsip: true } : k));
     assert.equal(M.guessCategory('bensin', 'keluar', [], kat), null);
   });
   test('pilihan manual tidak tertimpa; tanpa tebakan kategori tidak dikosongkan', () => {
-    const manual = { kategori: 'Belanja', manual: true, auto: null };
-    assert.deepEqual(M.applyGuess(manual, { kategori: 'Makan', alasan: 'kamus', kata: 'nasi' }), manual);
-    const auto = M.applyGuess({ kategori: 'Makan', manual: false, auto: null }, { kategori: 'Transport', alasan: 'kamus', kata: 'bensin' });
+    const manual = { kategori: 'Shopping', manual: true, auto: null };
+    assert.deepEqual(M.applyGuess(manual, { kategori: 'Food', alasan: 'kamus', kata: 'nasi' }), manual);
+    const auto = M.applyGuess({ kategori: 'Food', manual: false, auto: null }, { kategori: 'Transport', alasan: 'kamus', kata: 'bensin' });
     assert.equal(auto.kategori, 'Transport');
-    assert.equal(M.guessLabel(auto.auto), '✦ Otomatis dari "bensin"');
+    assert.equal(M.guessLabel(auto.auto), '✦ From "bensin"');
     const none = M.applyGuess(auto, null);
     assert.equal(none.kategori, 'Transport');
     assert.equal(none.auto, null);
   });
   test('cepat (<5 ms) untuk 3.000 transaksi', () => {
-    const big = Array.from({ length: 3000 }, (_, i) => tx({ catatan: `catatan nomor ${i}`, kategori: 'Makan' }));
+    const big = Array.from({ length: 3000 }, (_, i) => tx({ catatan: `catatan nomor ${i}`, kategori: 'Food' }));
     M.guessCategory('pemanasan', 'keluar', big, KAT); // isi cache normalisasi
     const t0 = performance.now();
     M.guessCategory('catatan nomor 12', 'keluar', big, KAT);
@@ -179,14 +179,14 @@ describe('tagihan', () => {
 });
 
 describe('admin otomatis', () => {
-  const bni = acc({ id: 'bni', saldo_awal: 1_000_000, admin_nominal: 12_500, admin_jadwal: 'tgl:25', admin_kategori: 'Biaya bank', dibuat: '2026-08-10T09:00:00+07:00' });
+  const bni = acc({ id: 'bni', saldo_awal: 1_000_000, admin_nominal: 12_500, admin_jadwal: 'tgl:25', admin_kategori: 'Bank Fees', dibuat: '2026-08-10T09:00:00+07:00' });
   test('catch-up beberapa bulan yang terlewat', () => {
     const due = M.dueAdminCharges([bni], [], '2026-11-15');
     assert.deepEqual(due.map(t => t.id), ['admin-bni-2026-08', 'admin-bni-2026-09', 'admin-bni-2026-10']);
     assert.deepEqual(due.map(t => t.tanggal), ['2026-08-25', '2026-09-25', '2026-10-25']);
     const t = due[0];
     assert.equal(t.tipe, 'keluar'); assert.equal(t.sumber, 'otomatis'); assert.equal(t.periode, '2026-08');
-    assert.equal(t.kategori, 'Biaya bank'); assert.equal(t.nominal, 12_500); assert.equal(t.catatan, 'Biaya admin bulanan');
+    assert.equal(t.kategori, 'Bank Fees'); assert.equal(t.nominal, 12_500); assert.equal(t.catatan, 'Monthly admin fee');
   });
   test('jatuh hari ini ikut dicatat', () => {
     assert.equal(M.dueAdminCharges([bni], [], '2026-11-25').length, 4);
@@ -226,17 +226,17 @@ describe('admin otomatis', () => {
 });
 
 describe('insights', () => {
-  const budget = [{ bulan: '2026-11', kategori: 'Makan', batas: 100 }, { bulan: '2026-11', kategori: 'Jajan', batas: 100 }, { bulan: '2026-11', kategori: 'Belanja', batas: 100 }];
+  const budget = [{ bulan: '2026-11', kategori: 'Food', batas: 100 }, { bulan: '2026-11', kategori: 'Snacks', batas: 100 }, { bulan: '2026-11', kategori: 'Shopping', batas: 100 }];
   const list = [
-    tx({ tanggal: '2026-11-02', kategori: 'Makan', nominal: 120 }),
-    tx({ tanggal: '2026-11-03', kategori: 'Jajan', nominal: 92 }),
-    tx({ tanggal: '2026-11-03', kategori: 'Belanja', nominal: 10 }),
-    tx({ tanggal: '2026-10-03', kategori: 'Makan', nominal: 300 }),
-    tx({ tanggal: '2026-10-20', kategori: 'Makan', nominal: 999 }),
+    tx({ tanggal: '2026-11-02', kategori: 'Food', nominal: 120 }),
+    tx({ tanggal: '2026-11-03', kategori: 'Snacks', nominal: 92 }),
+    tx({ tanggal: '2026-11-03', kategori: 'Shopping', nominal: 10 }),
+    tx({ tanggal: '2026-10-03', kategori: 'Food', nominal: 300 }),
+    tx({ tanggal: '2026-10-20', kategori: 'Food', nominal: 999 }),
   ];
   test('perlu direm: lewat budget atau ≥90%', () => {
     const i = M.insights(list, budget, '2026-11', '2026-11-15');
-    assert.deepEqual(i.perluDirem.map(x => x.kategori), ['Makan', 'Jajan']);
+    assert.deepEqual(i.perluDirem.map(x => x.kategori), ['Food', 'Snacks']);
   });
   test('banding dengan periode tanggal yang sama bulan lalu', () => {
     const i = M.insights(list, budget, '2026-11', '2026-11-15');
@@ -257,7 +257,7 @@ describe('tanggal', () => {
 });
 
 describe('transaksi berulang', () => {
-  const rule = o => ({ id: 'r1', nama: 'Gaji', tipe: 'masuk', nominal: 8_000_000, kategori: 'Gaji', akun: 'a', akun_tujuan: '', jadwal: 'bulanan:1', mulai: '2026-08-15', aktif: true, ...o });
+  const rule = o => ({ id: 'r1', nama: 'Salary', tipe: 'masuk', nominal: 8_000_000, kategori: 'Salary', akun: 'a', akun_tujuan: '', jadwal: 'bulanan:1', mulai: '2026-08-15', aktif: true, ...o });
 
   test('bulanan: catch-up periode terlewat, id deterministik, idempoten', () => {
     const due = M.dueRecurring([rule()], [], '2026-11-16');
@@ -293,9 +293,9 @@ describe('transaksi berulang', () => {
     assert.equal(tr.length, 1); assert.equal(tr[0].akun_tujuan, 'c'); assert.equal(tr[0].kategori, '');
   });
   test('label dan jatuh tempo berikutnya', () => {
-    assert.equal(M.scheduleLabel('bulanan:1'), 'Tiap tgl 1');
-    assert.equal(M.scheduleLabel('bulanan:akhir'), 'Tiap akhir bulan');
-    assert.equal(M.scheduleLabel('mingguan:5'), 'Tiap Jumat');
+    assert.equal(M.scheduleLabel('bulanan:1'), 'Monthly on the 1st');
+    assert.equal(M.scheduleLabel('bulanan:akhir'), 'Monthly, last day');
+    assert.equal(M.scheduleLabel('mingguan:5'), 'Every Friday');
     assert.equal(M.nextOccurrence(rule(), '2026-11-16').tanggal, '2026-12-01');
     assert.equal(M.nextOccurrence(rule({ jadwal: 'bulanan:16', mulai: '2026-11-17' }), '2026-11-16').tanggal, '2026-12-16');
   });
@@ -304,7 +304,7 @@ describe('transaksi berulang', () => {
 describe('talangan & piutang', () => {
   const rek = [acc({ id: 'a', saldo_awal: 500_000 })];
   const list = [
-    tx({ id: 'mk', tipe: 'keluar', nominal: 300_000, kategori: 'Makan', akun: 'a' }),
+    tx({ id: 'mk', tipe: 'keluar', nominal: 300_000, kategori: 'Food', akun: 'a' }),
     tx({ id: 'lunas1', tipe: 'pelunasan', nominal: 100_000, akun: 'a' }),
   ];
   const piutang = [
@@ -368,7 +368,7 @@ describe('target tabungan', () => {
 });
 
 describe('cicilan', () => {
-  const bill = o => ({ id: 'hp', nama: 'Cicilan HP', nominal: 500_000, tanggal: 5, akun: 'a', kategori: 'Tagihan', aktif: true, tenor: 3, cicilan_mulai: '2026-10', dibuat: '2026-10-02T09:00:00+07:00', ...o });
+  const bill = o => ({ id: 'hp', nama: 'Cicilan HP', nominal: 500_000, tanggal: 5, akun: 'a', kategori: 'Utilities', aktif: true, tenor: 3, cicilan_mulai: '2026-10', dibuat: '2026-10-02T09:00:00+07:00', ...o });
   const pay = p => tx({ tipe: 'keluar', nominal: 500_000, tagihan_id: 'hp', periode: p, tanggal: `${p}-05` });
   test('progres dihitung dari periode lunas', () => {
     assert.deepEqual(M.installmentInfo(bill(), [pay('2026-10'), pay('2026-11')]), { paid: 2, tenor: 3, done: false, start: '2026-10' });
@@ -393,17 +393,17 @@ describe('cicilan', () => {
 describe('rekap, arus kas, cek saldo', () => {
   const list = [
     tx({ tipe: 'masuk', nominal: 8_000_000, tanggal: '2026-10-01' }),
-    tx({ tipe: 'keluar', nominal: 3_000_000, kategori: 'Makan', tanggal: '2026-10-10' }),
+    tx({ tipe: 'keluar', nominal: 3_000_000, kategori: 'Food', tanggal: '2026-10-10' }),
     tx({ tipe: 'keluar', nominal: 1_000_000, kategori: 'Transport', tanggal: '2026-10-11' }),
-    tx({ tipe: 'keluar', nominal: 500_000, kategori: 'Jajan', tanggal: '2026-10-12' }),
-    tx({ tipe: 'keluar', nominal: 500_000, kategori: 'Hiburan', tanggal: '2026-10-13' }),
-    tx({ tipe: 'keluar', nominal: 10_000_000, kategori: 'Makan', tanggal: '2026-09-10' }),
+    tx({ tipe: 'keluar', nominal: 500_000, kategori: 'Snacks', tanggal: '2026-10-12' }),
+    tx({ tipe: 'keluar', nominal: 500_000, kategori: 'Entertainment', tanggal: '2026-10-13' }),
+    tx({ tipe: 'keluar', nominal: 10_000_000, kategori: 'Food', tanggal: '2026-09-10' }),
     tx({ tipe: 'transfer', nominal: 9_000_000, akun_tujuan: 'b', tanggal: '2026-10-14' }),
   ];
   test('rekap bulan: masuk, keluar, sisa, 3 kategori terbesar, banding bulan lalu', () => {
     const r = M.recap(list, '2026-10');
     assert.equal(r.masuk, 8_000_000); assert.equal(r.keluar, 5_000_000); assert.equal(r.sisa, 3_000_000);
-    assert.deepEqual(r.top.map(t => t.kategori), ['Makan', 'Transport', 'Jajan']);
+    assert.deepEqual(r.top.map(t => t.kategori), ['Food', 'Transport', 'Snacks']);
     assert.equal(r.top[0].share, 0.6);
     assert.equal(r.hemat, 0.5); assert.equal(r.tabung, 0.375); assert.equal(r.count, 6);
     assert.equal(M.recap(list, '2026-09').hemat, null);
@@ -423,13 +423,13 @@ describe('rekap, arus kas, cek saldo', () => {
 describe('analitik v2', () => {
   const rek = [acc({ id: 'a', saldo_awal: 1_000_000, saldo_minimum: 950_000 }), acc({ id: 'b', saldo_awal: 500_000 }), acc({ id: 'z', saldo_awal: 9_999, arsip: true })];
   const list = [
-    tx({ tipe: 'keluar', nominal: 100_000, kategori: 'Makan', catatan: 'Nasi Padang', akun: 'a', tanggal: '2026-11-02' }),
+    tx({ tipe: 'keluar', nominal: 100_000, kategori: 'Food', catatan: 'Nasi Padang', akun: 'a', tanggal: '2026-11-02' }),
     tx({ tipe: 'keluar', nominal: 20_000, kategori: 'Transport', catatan: 'GrabBike', akun: 'a', tanggal: '2026-11-03' }),
     tx({ tipe: 'keluar', nominal: 30_000, kategori: 'Transport', catatan: 'grabbike', akun: 'b', tanggal: '2026-11-03' }),
     tx({ tipe: 'transfer', nominal: 200_000, akun: 'a', akun_tujuan: 'b', biaya_admin: 2_500, tanggal: '2026-11-04' }),
-    tx({ tipe: 'masuk', nominal: 1_000_000, kategori: 'Gaji', akun: 'b', tanggal: '2026-11-05' }),
-    tx({ tipe: 'keluar', nominal: 50_000, kategori: 'Makan', catatan: 'Bakso', akun: 'a', tanggal: '2026-10-02' }),
-    tx({ tipe: 'keluar', nominal: 999_000, kategori: 'Makan', akun: 'a', tanggal: '2026-11-03', dihapus: true }),
+    tx({ tipe: 'masuk', nominal: 1_000_000, kategori: 'Salary', akun: 'b', tanggal: '2026-11-05' }),
+    tx({ tipe: 'keluar', nominal: 50_000, kategori: 'Food', catatan: 'Bakso', akun: 'a', tanggal: '2026-10-02' }),
+    tx({ tipe: 'keluar', nominal: 999_000, kategori: 'Food', akun: 'a', tanggal: '2026-11-03', dihapus: true }),
   ];
   test('balanceSeries: saldo total akhir tiap hari, transfer antar rekening netral (kecuali biaya)', () => {
     const s = M.balanceSeries(rek, list, '2026-11-01', '2026-11-05');
@@ -463,14 +463,14 @@ describe('analitik v2', () => {
   });
   test('kategori paling berubah vs periode sama bulan lalu', () => {
     const mv = M.categoryMovers(list, '2026-11', '2026-11-10');
-    assert.deepEqual(mv, [{ kategori: 'Makan', cur: 100_000, prev: 50_000, diff: 50_000 }]);
+    assert.deepEqual(mv, [{ kategori: 'Food', cur: 100_000, prev: 50_000, diff: 50_000 }]);
   });
   test('saldo di bawah minimum', () => {
     assert.deepEqual(M.lowBalances(rek, list).map(r => [r.id, r.saldo]), [['a', 627_500]]);
   });
   test('akan datang: tagihan belum lunas, berulang, admin; urut tanggal', () => {
-    const tagihan = [{ id: 'kos', nama: 'Kos', nominal: 1_500_000, tanggal: 12, akun: 'a', kategori: 'Tagihan', aktif: true }, { id: 'net', nama: 'Internet', nominal: 300_000, tanggal: 8, akun: 'a', aktif: true }];
-    const berulang = [{ id: 'g', nama: 'Gaji', tipe: 'masuk', nominal: 8_000_000, kategori: 'Gaji', akun: 'b', jadwal: 'bulanan:15', mulai: '2026-01-01', aktif: true }];
+    const tagihan = [{ id: 'kos', nama: 'Kos', nominal: 1_500_000, tanggal: 12, akun: 'a', kategori: 'Utilities', aktif: true }, { id: 'net', nama: 'Internet', nominal: 300_000, tanggal: 8, akun: 'a', aktif: true }];
+    const berulang = [{ id: 'g', nama: 'Salary', tipe: 'masuk', nominal: 8_000_000, kategori: 'Salary', akun: 'b', jadwal: 'bulanan:15', mulai: '2026-01-01', aktif: true }];
     const rek2 = [...rek.slice(0, 2), acc({ id: 'c', nama: 'BNI', admin_nominal: 12_500, admin_jadwal: 'tgl:11' })];
     const paid = [...list, tx({ tipe: 'keluar', nominal: 300_000, tagihan_id: 'net', periode: '2026-11', tanggal: '2026-11-08' })];
     const up = M.upcoming(tagihan, berulang, rek2, paid, '2026-11-10', 7);
@@ -478,5 +478,80 @@ describe('analitik v2', () => {
     // tagihan lewat jatuh tempo tetap muncul
     const late = M.upcoming(tagihan, [], rek, list, '2026-11-10', 7);
     assert.equal(late[0].nama, 'Internet'); assert.equal(late[0].lewat, true);
+  });
+});
+
+// ---------- v2.1: kategori baru & migrasi kategori lama ----------
+import { planCategoryMigration } from '../js/migrate.js';
+import { LEGACY_CATEGORY_NAMES } from '../js/schema.js';
+
+describe('kategori baru', () => {
+  test('kamus mengenali gym, kos, langganan, cicilan', () => {
+    const g = s => M.guessCategory(s, 'keluar', [], KAT)?.kategori;
+    assert.equal(g('membership gym'), 'Fitness');
+    assert.equal(g('bayar kos'), 'Rent');
+    assert.equal(g('netflix'), 'Subscriptions');
+    assert.equal(g('cicilan motor'), 'Loans & Credit');
+    assert.equal(g('grab food'), 'Food');
+    assert.equal(M.guessCategory('dividen saham', 'masuk', [], KAT)?.kategori, 'Investments');
+  });
+  test('setiap kata kunci menunjuk kategori bawaan yang ada', async () => {
+    const { CATEGORY_KEYWORDS } = await import('../js/category-keywords.js');
+    const names = new Set(KAT.map(k => k.nama));
+    for (const k of Object.keys(CATEGORY_KEYWORDS)) assert.ok(names.has(k), k);
+  });
+});
+
+describe('migrasi kategori lama', () => {
+  const old = [['Makan', 'keluar'], ['Tagihan', 'keluar'], ['Lainnya', 'keluar'], ['Biaya bank', 'keluar'], ['Gaji', 'masuk'], ['Lainnya', 'masuk'], ['Kopi', 'keluar']]
+    .map(([nama, tipe], i) => ({ nama, tipe, ikon: 'lainnya', warna: 'abu', urutan: i + 1, arsip: false }));
+  const data = {
+    kategori: old,
+    transaksi: [
+      { id: 't1', tipe: 'keluar', kategori: 'Makan', catatan: 'Nasi' },
+      { id: 't2', tipe: 'keluar', kategori: 'Tagihan', catatan: 'Kos November' },
+      { id: 't3', tipe: 'keluar', kategori: 'Tagihan', catatan: 'Token listrik' },
+      { id: 't4', tipe: 'keluar', kategori: 'Lainnya', catatan: 'Membership gym' },
+      { id: 't5', tipe: 'keluar', kategori: 'Lainnya', catatan: 'random' },
+      { id: 't6', tipe: 'masuk', kategori: 'Gaji', catatan: '' },
+      { id: 't7', tipe: 'keluar', kategori: 'Kopi', catatan: '' },
+      { id: 't8', tipe: 'transfer', kategori: '', catatan: '' },
+    ],
+    tagihan: [{ id: 'b1', nama: 'Kos', kategori: 'Tagihan' }, { id: 'b2', nama: 'Wifi', kategori: 'Tagihan' }],
+    berulang: [], rekening: [{ id: 'a', admin_kategori: 'Biaya bank' }],
+    budget: [{ bulan: '2026-11', kategori: 'Makan', batas: 1_000_000 }, { bulan: '2026-11', kategori: 'Tagihan', batas: 500_000 }],
+  };
+  const p = planCategoryMigration(data);
+  const cat = id => p.transaksi.find(t => t.id === id)?.kategori;
+  test('nama lama diganti, Tagihan/Lainnya ditebak ulang dari catatan', () => {
+    assert.equal(cat('t1'), 'Food');
+    assert.equal(cat('t2'), 'Rent');
+    assert.equal(cat('t3'), 'Utilities');
+    assert.equal(cat('t4'), 'Fitness');
+    assert.equal(cat('t5'), 'Other');
+    assert.equal(cat('t6'), 'Salary');
+    assert.equal(cat('t7'), undefined); // kategori buatan pengguna tidak disentuh
+    assert.equal(cat('t8'), undefined);
+    assert.deepEqual(p.tagihan.map(b => b.kategori), ['Rent', 'Phone & Internet']);
+    assert.equal(p.rekening[0].admin_kategori, 'Bank Fees');
+  });
+  test('kategori lama diarsipkan, bawaan baru ditambah, buatan pengguna di belakang', () => {
+    const k = (n, t = 'keluar') => p.kategori.find(x => x.nama === n && x.tipe === t);
+    assert.equal(k('Makan').arsip, true);
+    assert.ok(k('Fitness') && !k('Fitness').arsip);
+    assert.ok(k('Kopi').urutan > 100);
+    assert.equal(p.kategori.filter(x => x.nama === 'Lainnya').every(x => x.arsip), true);
+  });
+  test('budget pindah ke nama baru', () => {
+    const b = n => p.budget.find(x => x.kategori === n);
+    assert.equal(b('Food').batas, 1_000_000);
+    assert.equal(b('Makan').batas, 0);
+    assert.equal(b('Utilities').batas, 500_000);
+  });
+  test('data yang sudah baru: tidak ada perubahan transaksi', () => {
+    const q = planCategoryMigration({ kategori: KAT, transaksi: [{ id: 'x', tipe: 'keluar', kategori: 'Food', catatan: 'gym' }] });
+    assert.equal(q.transaksi.length, 0);
+    assert.equal(q.kategori.length, 0);
+    assert.ok(LEGACY_CATEGORY_NAMES.keluar.Makan);
   });
 });

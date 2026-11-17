@@ -16,22 +16,22 @@ export function rupiah(n, { sign = false, raw = false } = {}) {
   return `${s}Rp${group(n)}`;
 }
 
-// Format ringkas: 8.500.000 → "8,5 jt", 25.000 → "25rb"
+// Format ringkas: 8.500.000 → "8.5M", 25.000 → "25K"
 export function compact(n, { raw = false } = {}) {
   if (privacy && !raw) return '••';
   const a = Math.abs(Math.round(Number(n) || 0));
   const s = n < 0 ? '−' : '';
-  const one = v => (Math.round(v * 10) / 10).toString().replace('.', ',');
-  if (a >= 1e9) return `${s}${one(a / 1e9)} M`;
-  if (a >= 1e6) return `${s}${one(a / 1e6)} jt`;
-  if (a >= 1e3) return `${s}${one(a / 1e3)}rb`;
+  const one = v => (Math.round(v * 10) / 10).toString();
+  if (a >= 1e9) return `${s}${one(a / 1e9)}B`;
+  if (a >= 1e6) return `${s}${one(a / 1e6)}M`;
+  if (a >= 1e3) return `${s}${one(a / 1e3)}K`;
   return `${s}${a}`;
 }
 
 export const parseAmount = s => Number(String(s ?? '').replace(/[^\d]/g, '')) || 0;
-export const DAYS = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-export const MONTHS_LONG = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+export const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 export const monthShort = m => MONTHS[Number(m.slice(5, 7)) - 1];
 export const monthLong = m => `${MONTHS_LONG[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
@@ -41,8 +41,8 @@ export const fmtDayMonth = iso => `${dayOf(iso)} ${MONTHS[Number(iso.slice(5, 7)
 
 export function dayHeader(iso, today) {
   const diff = diffDays(iso, today);
-  if (diff === 0) return `Hari ini · ${fmtDay(iso)}`;
-  if (diff === 1) return `Kemarin · ${fmtDay(iso)}`;
+  if (diff === 0) return `Today · ${fmtDay(iso)}`;
+  if (diff === 1) return `Yesterday · ${fmtDay(iso)}`;
   return fmtDay(iso);
 }
 

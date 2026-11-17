@@ -104,22 +104,46 @@ export function fromRow(store, header, arr) {
   return o;
 }
 
-// Kategori default
+// Kategori default (urutan = urutan tampil). Nama dipakai sebagai kunci di data.
 export const DEFAULT_CATEGORIES = [
-  ['Makan', 'keluar', 'makan', 'oranye'],
+  ['Food', 'keluar', 'makan', 'oranye'],
+  ['Snacks', 'keluar', 'jajan', 'pink'],
+  ['Groceries', 'keluar', 'keranjang', 'hijau'],
+  ['Shopping', 'keluar', 'belanja', 'ungu'],
   ['Transport', 'keluar', 'transport', 'biru'],
-  ['Belanja', 'keluar', 'belanja', 'ungu'],
-  ['Tagihan', 'keluar', 'tagihan', 'kuning'],
-  ['Jajan', 'keluar', 'jajan', 'pink'],
-  ['Kesehatan', 'keluar', 'kesehatan', 'langit'],
-  ['Hiburan', 'keluar', 'hiburan', 'violet'],
-  ['Biaya bank', 'keluar', 'bank', 'teal'],
-  ['Lainnya', 'keluar', 'lainnya', 'abu'],
-  ['Gaji', 'masuk', 'gaji', 'hijau'],
+  ['Rent', 'keluar', 'rumah', 'teal'],
+  ['Utilities', 'keluar', 'listrik', 'kuning'],
+  ['Phone & Internet', 'keluar', 'internet', 'langit'],
+  ['Subscriptions', 'keluar', 'langganan', 'violet'],
+  ['Health', 'keluar', 'kesehatan', 'langit'],
+  ['Fitness', 'keluar', 'olahraga', 'hijau'],
+  ['Personal Care', 'keluar', 'kecantikan', 'pink'],
+  ['Entertainment', 'keluar', 'hiburan', 'violet'],
+  ['Education', 'keluar', 'pendidikan', 'biru'],
+  ['Travel', 'keluar', 'pesawat', 'langit'],
+  ['Family', 'keluar', 'anak', 'oranye'],
+  ['Pets', 'keluar', 'hewan', 'kuning'],
+  ['Gifts & Charity', 'keluar', 'donasi', 'pink'],
+  ['Insurance', 'keluar', 'asuransi', 'teal'],
+  ['Loans & Credit', 'keluar', 'pinjaman', 'indigo'],
+  ['Investments', 'keluar', 'investasi', 'hijau'],
+  ['Bank Fees', 'keluar', 'bank', 'teal'],
+  ['Other', 'keluar', 'lainnya', 'abu'],
+  ['Salary', 'masuk', 'gaji', 'hijau'],
   ['Bonus', 'masuk', 'bonus', 'hijau'],
-  ['Usaha', 'masuk', 'usaha', 'hijau'],
-  ['Lainnya', 'masuk', 'lainnya', 'abu'],
+  ['Business', 'masuk', 'usaha', 'hijau'],
+  ['Freelance', 'masuk', 'laptop', 'teal'],
+  ['Investments', 'masuk', 'investasi', 'hijau'],
+  ['Gifts', 'masuk', 'hadiah', 'pink'],
+  ['Refunds', 'masuk', 'refund', 'biru'],
+  ['Other', 'masuk', 'lainnya', 'abu'],
 ].map(([nama, tipe, ikon, warna], i) => ({ nama, tipe, ikon, warna, urutan: i + 1, arsip: false }));
+
+// Nama kategori bawaan versi lama (Indonesia) → nama baru. 'Tagihan' & 'Lainnya' ditebak ulang dari catatan.
+export const LEGACY_CATEGORY_NAMES = {
+  keluar: { Makan: 'Food', Jajan: 'Snacks', Belanja: 'Shopping', Transport: 'Transport', Tagihan: 'Utilities', Kesehatan: 'Health', Hiburan: 'Entertainment', 'Biaya bank': 'Bank Fees', Lainnya: 'Other' },
+  masuk: { Gaji: 'Salary', Bonus: 'Bonus', Usaha: 'Business', Lainnya: 'Other' },
+};
 
 // 8 pilihan warna untuk kategori buatan pengguna
 export const COLOR_CHOICES = ['oranye', 'kuning', 'hijau', 'teal', 'biru', 'ungu', 'pink', 'abu'];

@@ -4,7 +4,7 @@ import * as sheets from './sheets.js';
 import * as auth from './auth.js';
 import { ensureStructure } from './drive.js';
 import { SHEETS, SHEET_BY_NAME, SCHEMA_VERSION, keyOf, fromRow, colLetter } from './schema.js';
-import { state, emit, replaceStore, setApp, runAutomations, onWrite } from './store.js';
+import { state, emit, replaceStore, setApp, runAutomations, migrateCategories, onWrite } from './store.js';
 
 const rowMaps = {}; // nama sheet → Map(key → nomor baris)
 
@@ -139,6 +139,7 @@ export function syncAll() {
       await ensureSchema();
       await flush();
       await pull();
+      await migrateCategories();
       await runAutomations();
       await flush();
       state.needsAuth = false;

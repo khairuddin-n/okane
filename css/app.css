@@ -20,7 +20,8 @@
   --chip-bg: #EAE6DC; --nav-off: #717C77; --nav-pill: #D8EBE3; --card-line: rgba(40,34,18,.06); --sel-ring: #0B5D4E;
   --nav-glass: rgba(255,255,255,.86);
   --stat-in: #7CE3B5; --stat-out: #FFB48A;
-  --display: "Space Grotesk", Inter, system-ui, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --display: var(--sans);
   /* palet kategori: tint (latar) & ink (garis) */
   --c-oranye-t: #FFEFE2; --c-oranye-i: #C2410C;
   --c-biru-t: #E6EEFE;   --c-biru-i: #1D4ED8;
@@ -81,8 +82,7 @@
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
-  font: 400 15px/1.45 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-feature-settings: "cv11", "ss01";
+  font: 400 15px/1.45 var(--sans);
   -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
 }
@@ -117,7 +117,7 @@ body.no-nav .nav { display: none; }
 .hdr > * { position: relative; z-index: 1; }
 .hdr-top { display: flex; align-items: center; justify-content: space-between; min-height: 48px; }
 .brand { display: flex; align-items: center; gap: 8px; color: var(--on-header); }
-.brand .wm { font: 800 20px/1 Inter, system-ui, sans-serif; letter-spacing: -.03em; }
+
 .avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--on-header-soft); color: var(--on-header); font-weight: 700; font-size: 13px; letter-spacing: .02em; }
 .hdr .lbl { color: var(--on-header-muted); font-size: 13px; font-weight: 500; margin-top: 18px; }
 .total-row { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; }
@@ -363,7 +363,7 @@ body.no-nav #toast, body:has(.sheet-wrap) #toast { bottom: auto; top: calc(12px 
 .hstats .hi { position: relative; }
 .pill { display: inline-block; margin-top: 12px; font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 12px; background: var(--on-header); color: var(--header); }
 .chart { width: 100%; height: auto; display: block; }
-.chart .lbl { fill: var(--muted); font-size: 9px; font-weight: 500; font-family: Inter, system-ui, sans-serif; }
+.chart .lbl { fill: var(--muted); font-size: 9px; font-weight: 500; font-family: var(--sans); }
 .chart-foot { display: flex; justify-content: space-between; align-items: baseline; margin-top: 10px; }
 .chart-foot span { font-size: 13px; color: var(--muted); font-weight: 500; }
 .comp { display: flex; height: 10px; border-radius: 99px; overflow: hidden; gap: 3px; margin: 4px 0 8px; }
@@ -404,7 +404,7 @@ body.no-nav #toast, body:has(.sheet-wrap) #toast { bottom: auto; top: calc(12px 
 .onb { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; padding: calc(28px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom)); }
 .onb .hero { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 18px; }
 .onb .logo { width: 64px; height: 64px; }
-.wordmark { font: 700 44px/1 "Space Grotesk", Inter, system-ui, sans-serif; color: var(--primary-text); letter-spacing: -.03em; }
+.wordmark { font: 700 44px/1 var(--sans); color: var(--primary-text); letter-spacing: -.03em; }
 .onb h1 { font-size: 28px; font-weight: 800; line-height: 1.2; letter-spacing: -.03em; }
 .onb p { color: var(--muted); }
 .onb .foot { display: flex; flex-direction: column; gap: 10px; }
@@ -462,7 +462,7 @@ a.cat-row { display: block; color: inherit; }
 .recap { background: var(--header); color: var(--on-header); border-radius: 24px; padding: 24px 22px; position: relative; overflow: hidden; }
 .recap::after { content: ""; position: absolute; right: -60px; top: -80px; width: 220px; height: 220px; border-radius: 50%; border: 32px solid var(--on-header-soft); pointer-events: none; }
 .recap > * { position: relative; z-index: 1; }
-.recap .wm { font: 700 24px/1 "Space Grotesk", Inter, system-ui, sans-serif; letter-spacing: -.03em; }
+.recap .wm { font: 700 24px/1 var(--sans); letter-spacing: -.03em; }
 .recap .rl { margin-top: 26px; font-size: 13px; font-weight: 500; color: var(--on-header-muted); }
 .recap h2 { font-size: 28px; font-weight: 800; letter-spacing: -.03em; line-height: 1.2; }
 .recap .rb { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; }
@@ -503,14 +503,13 @@ body.over-lock .sheet-wrap { z-index: 120; }
 
 /* ====================== v2: bahasa visual baru ====================== */
 body { font-size: 15px; }
-.num { font-feature-settings: "tnum", "cv11", "ss01"; }
+.num { font-feature-settings: "tnum"; }
 .top h1, .sheet-h h2, .card-h h2, .sec-h h2, .lock h1, .onb h1 { font-family: var(--display); letter-spacing: -.025em; }
 .top h1 { font-size: 28px; font-weight: 700; }
 .top.with-back h1 { font-size: 19px; font-weight: 700; }
 .card-h h2, .sec-h h2 { font-size: 17px; font-weight: 700; }
 .sec-h { margin: 24px 0 10px; }
 
-/* fitur OpenType Inter (cv11/ss01) jangan ikut ke font tampilan */
 .top h1, .sheet-h h2, .card-h h2, .sec-h h2, .lock h1, .onb h1, .hero-top h1, .brand .wm, .hero .total, .today-t b, .today-b b, .acc-mini .sl, .insc b, .acc-card .nm, .acc-card .sl, .catat .amount input, .catat .amount span, .donut-c b, .recap h2, .recap .rb b, .wordmark { font-feature-settings: "tnum"; }
 
 /* Kartu: lebih lapang, bayangan lembut */
@@ -677,3 +676,30 @@ a.row { color: var(--text); }
 @keyframes vt-in { from { opacity: 0; transform: translateY(8px); } }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---------- v2.1: catatan privasi & petunjuk ---------- */
+.hint { font-size: 12.5px; color: var(--muted); margin: -4px 2px 0; }
+.privacy-note { display: flex; gap: 8px; align-items: flex-start; margin: 20px 20px 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.privacy-note .ic { flex: none; margin-top: 2px; }
+.privacy-note a { color: var(--primary-text); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.onb-note { margin: 4px 4px 0; justify-content: center; text-align: left; }
+
+/* ---------- v2.1: tampilan lebih bersih, teks tidak terpotong ---------- */
+/* Judul baris boleh 2 baris (tidak dipotong "…"); meta tetap 1 baris & dipendekkan di JS */
+.row .ttl { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; overflow-wrap: anywhere; }
+.row .amt { align-self: center; }
+.tgt-h .ttl, .rule .ttl { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
+/* Ringkasan Riwayat: satu kartu, tiga kolom, angka penuh */
+.rw-sum { gap: 0; padding: 12px 4px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow), 0 0 0 1px var(--card-line); }
+.rw-sum > div { background: none; box-shadow: none; border-radius: 0; padding: 0 10px; }
+.rw-sum > div + div { border-left: 1px solid var(--line); }
+.rw-sum b { font-size: 13px; overflow: visible; letter-spacing: -.02em; }
+/* Chip saran: jangan sampai satu chip memenuhi layar */
+.sugg .chip { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+/* Label kategori: 2 baris kecil daripada terpotong */
+.cat span:last-child { white-space: normal; line-height: 1.2; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cat.more .tile { background: var(--chip-bg); color: var(--muted); }
+/* Onboarding: teks di atas latar hijau harus terbaca */
+.onb .hero .wordmark { color: var(--on-header); }
+.onb .hero h1 { font-weight: 700; color: var(--on-header); }
+.onb .hero p { color: var(--on-header-muted); }

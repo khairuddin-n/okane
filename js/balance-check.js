@@ -34,20 +34,20 @@ function show(accs, today) {
   const status = r => {
     if (!real.has(r.id)) return '';
     const d = real.get(r.id) - bal.get(r.id);
-    return d === 0 ? '<span class="ok">Cocok</span>' : `<span class="warn num">Selisih ${rupiah(d, { sign: true, raw: true })}</span>`;
+    return d === 0 ? '<span class="ok">Matches</span>' : `<span class="warn num">Off by ${rupiah(d, { sign: true, raw: true })}</span>`;
   };
   const rows = () => (all ? accs : accs.slice(0, 3)).map(r => `<div class="bc-row">
-      <div class="mid"><b>${esc(r.nama)}</b><span class="num">Di okane ${rupiah(bal.get(r.id), { raw: true })}</span></div>
-      <div class="bc-in"><div class="money"><input class="input num" data-bc="${esc(r.id)}" inputmode="numeric" autocomplete="off" placeholder="Sama" value="${real.has(r.id) ? group(real.get(r.id)) : ''}" aria-label="Saldo sebenarnya ${esc(r.nama)}"></div>
+      <div class="mid"><b>${esc(r.nama)}</b><span class="num">In okane ${rupiah(bal.get(r.id), { raw: true })}</span></div>
+      <div class="bc-in"><div class="money"><input class="input num" data-bc="${esc(r.id)}" inputmode="numeric" autocomplete="off" placeholder="Same" value="${real.has(r.id) ? group(real.get(r.id)) : ''}" aria-label="Actual ${esc(r.nama)} balance"></div>
         <small data-st="${esc(r.id)}">${status(r)}</small></div></div>`).join('')
-    + (all ? '' : `<button class="btn ghost" type="button" data-act="more">Tampilkan ${accs.length - 3} rekening lainnya</button>`);
-  const okLabel = () => { const n = diffs().length; return n ? `Sesuaikan ${n} rekening` : 'Semua cocok'; };
+    + (all ? '' : `<button class="btn ghost" type="button" data-act="more">Show ${accs.length - 3} more accounts</button>`);
+  const okLabel = () => { const n = diffs().length; return n ? `Adjust ${n} ${n === 1 ? 'account' : 'accounts'}` : 'All match'; };
   open = true;
   let acted = false;
   openSheet({
-    title: 'Cek saldo mingguan',
+    title: 'Weekly balance check',
     body: `<div class="stack"><div id="bc-rows" class="stack">${rows()}</div>
-      <div class="row2"><button class="btn ghost" type="button" data-act="later">Nanti</button><button class="btn primary" type="button" data-act="ok">${okLabel()}</button></div></div>`,
+      <div class="row2"><button class="btn ghost" type="button" data-act="later">Later</button><button class="btn primary" type="button" data-act="ok">${okLabel()}</button></div></div>`,
     onMount(el, close) {
       const bind = () => {
         el.querySelectorAll('[data-bc]').forEach(i => {
@@ -70,10 +70,10 @@ function show(accs, today) {
         close();
         const jam = hhmm(new Date());
         const undo = await withUndo(async () => {
-          for (const r of list) await saveTx({ tanggal: today, jam, tipe: 'penyesuaian', nominal: real.get(r.id) - bal.get(r.id), akun: r.id, catatan: 'Cek saldo mingguan' });
+          for (const r of list) await saveTx({ tanggal: today, jam, tipe: 'penyesuaian', nominal: real.get(r.id) - bal.get(r.id), akun: r.id, catatan: 'Weekly balance check' });
           await setMeta('last_balance_check', today);
         });
-        if (list.length) undoToast(`${list.length} rekening disesuaikan`, undo); else toast('Semua cocok');
+        if (list.length) undoToast(`${list.length} ${list.length === 1 ? 'account' : 'accounts'} adjusted`, undo); else toast('All match');
       };
     },
     // ditutup tanpa memilih = tunda 2 hari

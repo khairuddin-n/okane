@@ -4,7 +4,8 @@ import * as db from './db.js';
 import { keyOf, toRow, STORES, SHEET_BY_STORE, DEFAULT_CATEGORIES } from './schema.js';
 import { nowISO, todayISO, hhmm } from './dates.js';
 import { setPrivacy as setFmtPrivacy } from './format.js';
-import { dueAdminCharges, dueRecurring, applyShares, num } from './model.js';
+import { dueAdminCharges, dueRecurring, applyShares, num, BILL_CATEGORY } from './model.js';
+import { planCategoryMigration, CATEGORY_VERSION } from './migrate.js';
 
 export const state = {
   ready: false,
@@ -125,7 +126,7 @@ export async function saveCategory(cat) {
   return put('kategori', { urutan: max + 1, arsip: false, ...cat });
 }
 export async function saveBill(b) {
-  const base = { id: crypto.randomUUID(), kategori: 'Tagihan', aktif: true, tenor: 0, cicilan_mulai: '' };
+  const base = { id: crypto.randomUUID(), kategori: BILL_CATEGORY, aktif: true, tenor: 0, cicilan_mulai: '' };
   return put('tagihan', stamp({ ...base, ...b }));
 }
 // Simpan budget satu bulan (semua kategori keluar; 0 untuk yang dikosongkan)
@@ -232,6 +233,25 @@ export async function runAutomations() {
 export async function startLocal() {
   await setApp({ mode: 'local', user: null, spreadsheetId: null });
   if (!state.kategori.length) await putMany('kategori', DEFAULT_CATEGORIES);
+  await setMeta('category_version', CATEGORY_VERSION);
+}
+
+// Sekali per data: ganti kategori bawaan lama (Indonesia) dengan set kategori baru. Idempoten lewat meta.category_version.
+let migrating = null;
+export function migrateCategories() {
+  if (!migrating) migrating = (async () => {
+    if (!state.kategori.length || state.meta.category_version === CATEGORY_VERSION) return 0;
+    const plan = planCategoryMigration(state);
+    let n = 0;
+    for (const store of ['kategori', 'transaksi', 'tagihan', 'berulang', 'rekening', 'budget']) {
+      const now = nowISO();
+      const rows = plan[store].map(o => (store === 'kategori' || store === 'budget' ? o : { ...o, diubah: now }));
+      if (rows.length) { await putMany(store, rows, { record: false }); n += rows.length; }
+    }
+    await setMeta('category_version', CATEGORY_VERSION);
+    return n;
+  })().finally(() => { migrating = null; });
+  return migrating;
 }
 
 export async function resetAll() {

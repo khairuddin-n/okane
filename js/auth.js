@@ -12,7 +12,7 @@ function gisReady(timeout = 15000) {
     const t0 = Date.now();
     (function poll() {
       if (window.google?.accounts?.oauth2) return resolve();
-      if (Date.now() - t0 > timeout) return reject(new Error('Google Sign-In tidak termuat'));
+      if (Date.now() - t0 > timeout) return reject(new Error('Google Sign-In failed to load'));
       setTimeout(poll, 100);
     })();
   });
@@ -28,7 +28,7 @@ export async function init() {
       const w = waiter; waiter = null;
       if (resp.error) { w?.reject(new Error(resp.error_description || resp.error)); return; }
       if (!google.accounts.oauth2.hasGrantedAllScopes(resp, SCOPE)) {
-        w?.reject(Object.assign(new Error('Izin akses file Drive diperlukan supaya okane bisa menyimpan data.'), { code: 'scope' }));
+        w?.reject(Object.assign(new Error('okane needs Drive file access to save your data.'), { code: 'scope' }));
         return;
       }
       token = resp.access_token;
@@ -37,7 +37,7 @@ export async function init() {
     },
     error_callback: err => {
       const w = waiter; waiter = null;
-      w?.reject(Object.assign(new Error(err?.message || err?.type || 'Login dibatalkan'), { code: err?.type }));
+      w?.reject(Object.assign(new Error(err?.message || err?.type || 'Sign-in cancelled'), { code: err?.type }));
     },
   });
 }
@@ -46,8 +46,8 @@ export const ready = () => !!client;
 
 // Harus dipanggil langsung dari aksi pengguna (klik), supaya popup tidak diblokir.
 export function request({ prompt = '' } = {}) {
-  if (!client) return Promise.reject(Object.assign(new Error('Google Sign-In belum siap. Periksa koneksi internet.'), { code: 'not_ready' }));
-  if (waiter) waiter.reject(new Error('dibatalkan'));
+  if (!client) return Promise.reject(Object.assign(new Error('Google Sign-In isn’t ready. Check your internet connection.'), { code: 'not_ready' }));
+  if (waiter) waiter.reject(new Error('cancelled'));
   return new Promise((resolve, reject) => {
     waiter = { resolve, reject };
     const opts = { prompt };

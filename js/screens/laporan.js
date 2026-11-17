@@ -7,8 +7,8 @@ import { catTile, catStyle, openSheet, moneyInput, bindMoney, toast, money } fro
 import { state, saveBudget, statTx } from '../store.js';
 
 let month = null;
-const DOW = ['S', 'S', 'R', 'K', 'J', 'S', 'M'];
-const DOW_LONG = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+const DOW = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const DOW_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 function dailyChart(m, today, tb) {
   const data = dailySpending(statTx(), m);
@@ -29,10 +29,10 @@ function dailyChart(m, today, tb) {
   const line = jatah ? `<line x1="0" x2="${W}" y1="${y(jatah)}" y2="${y(jatah)}" stroke="var(--muted)" stroke-dasharray="4 4" stroke-width="1"/>` : '';
   const total = data.slice(0, upto).reduce((s, v) => s + v, 0);
   const avg = upto ? total / upto : 0;
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pengeluaran harian">
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily spending">
       <line x1="0" x2="${W}" y1="${base}" y2="${base}" stroke="var(--line)"/>${bars}${line}${ticks}</svg>
-    <div class="chart-foot"><span>Rata-rata per hari</span><b class="num">${rupiah(avg)}</b></div>
-    ${jatah ? `<div class="legend"><span><i style="background:var(--warn)"></i>Di atas jatah ${rupiah(jatah)}</span></div>` : ''}`;
+    <div class="chart-foot"><span>Average per day</span><b class="num">${rupiah(avg)}</b></div>
+    ${jatah ? `<div class="legend"><span><i style="background:var(--warn)"></i>Above daily limit ${rupiah(jatah)}</span></div>` : ''}`;
 }
 
 function flowChart(m) {
@@ -42,7 +42,7 @@ function flowChart(m) {
   const h = v => (v / max) * (base - top);
   const cur = data[data.length - 1];
   const sisa = cur.masuk - cur.keluar;
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pemasukan dan pengeluaran 6 bulan">
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Income and spending, 6 months">
     <line x1="0" x2="${W}" y1="${base}" y2="${base}" stroke="var(--line)"/>
     ${data.map((d, i) => {
       const on = d.month === m;
@@ -50,15 +50,15 @@ function flowChart(m) {
         <rect x="${i * bw + bw * 0.54}" y="${base - h(d.keluar)}" width="${bw * 0.3}" height="${Math.max(1, h(d.keluar))}" rx="4" fill="var(--warn)" opacity="${on ? 1 : 0.45}"/>
         <text class="lbl" x="${(i + 0.5) * bw}" y="${H - 8}" text-anchor="middle" style="${on ? 'font-weight:700;fill:var(--text)' : ''}">${monthShort(d.month)}</text>`;
     }).join('')}</svg>
-    <div class="chart-foot"><span>Sisa ${monthShort(m)}${cur.masuk > 0 ? ` · ${pct(sisa / cur.masuk)} dari pemasukan` : ''}</span><b class="num ${sisa >= 0 ? 't-income' : 't-expense'}">${rupiah(sisa, { sign: true })}</b></div>
-    <div class="legend"><span><i style="background:var(--income)"></i>Masuk<b class="num">${rupiah(cur.masuk)}</b></span><span><i style="background:var(--warn)"></i>Keluar<b class="num">${rupiah(cur.keluar)}</b></span></div>`;
+    <div class="chart-foot"><span>Left in ${monthShort(m)}${cur.masuk > 0 ? ` · ${pct(sisa / cur.masuk)} of income` : ''}</span><b class="num ${sisa >= 0 ? 't-income' : 't-expense'}">${rupiah(sisa, { sign: true })}</b></div>
+    <div class="legend"><span><i style="background:var(--income)"></i>In<b class="num">${rupiah(cur.masuk)}</b></span><span><i style="background:var(--warn)"></i>Out<b class="num">${rupiah(cur.keluar)}</b></span></div>`;
 }
 
 function catCard(m) {
   const rows = categoryReport(statTx(), state.budget, m).filter(r => r.spent > 0 || r.batas > 0);
   const spentRows = rows.filter(r => r.spent > 0);
   const total = spentRows.reduce((t, r) => t + r.spent, 0);
-  const ring = spentRows.length ? `<div class="cat-top">${donut(spentRows.map(r => ({ value: r.spent, color: `var(--c-${catStyle('keluar', r.kategori).warna}-i)` })), { center: `<small>${spentRows.length} kategori</small><b class="num">${esc(compact(total))}</b>` })}
+  const ring = spentRows.length ? `<div class="cat-top">${donut(spentRows.map(r => ({ value: r.spent, color: `var(--c-${catStyle('keluar', r.kategori).warna}-i)` })), { center: `<small>${spentRows.length} ${spentRows.length === 1 ? 'category' : 'categories'}</small><b class="num">${esc(compact(total))}</b>` })}
     <div class="cat-leg">${spentRows.slice(0, 4).map(r => `<div><i style="background:var(--c-${esc(catStyle('keluar', r.kategori).warna)}-i)"></i><span>${esc(r.kategori)}</span><b class="num">${pct(r.share)}</b></div>`).join('')}</div></div>` : '';
   const list = rows.map(r => {
     let ft = '', bar = '';
@@ -66,29 +66,29 @@ function catCard(m) {
       const cls = r.pct > 1 ? 'over' : r.pct >= 0.9 ? 'warn' : '';
       const rest = r.batas - r.spent;
       bar = `<div class="bar thin ${cls}"><i style="width:${Math.min(100, r.pct * 100)}%"></i></div>`;
-      ft = `<div class="ft"><span>dari ${rupiah(r.batas)}</span><span class="${cls || 'ok'}">${rest >= 0 ? `Sisa ${rupiah(rest)}` : `Lewat ${rupiah(-rest)}`}</span></div>`;
+      ft = `<div class="ft"><span>of ${rupiah(r.batas)}</span><span class="${cls || 'ok'}">${rest >= 0 ? `${rupiah(rest)} left` : `${rupiah(-rest)} over`}</span></div>`;
     }
     return `<a class="cat-row" href="#/riwayat?kat=${encodeURIComponent(r.kategori)}&bulan=${m}"><div class="hd">${catTile('keluar', r.kategori)}
       <span class="mid">${esc(r.kategori)} <small>· ${pct(r.share)}</small></span><b class="num">${rupiah(r.spent)}</b></div>
       ${bar || ft ? `<div class="bt">${bar}${ft}</div>` : ''}</a>`;
   }).join('');
   return `<section class="card">
-    <div class="card-h"><h2>Kategori</h2><button class="btn sm" data-act="budget">Atur budget</button></div>
+    <div class="card-h"><h2>Categories</h2><button class="btn sm" data-act="budget">Set budget</button></div>
     ${ring}
-    ${list || '<p class="empty">Belum ada pengeluaran.</p>'}
+    ${list || '<p class="empty">No spending yet.</p>'}
   </section>`;
 }
 
 function openBudget(m) {
   const lim = budgetFor(state.budget, m);
-  const kats = state.kategori.filter(k => k.tipe === 'keluar' && !k.arsip);
+  const kats = state.kategori.filter(k => k.tipe === 'keluar' && !k.arsip).sort((a, b) => num(a.urutan) - num(b.urutan));
   openSheet({
-    title: `Budget ${monthLong(m)}`,
+    title: `${monthLong(m)} budget`,
     body: `<form id="bud" class="stack">
       ${kats.map(k => `<div style="display:flex;align-items:center;gap:12px">${catTile('keluar', k.nama, 'sm')}<span style="flex:1;font-weight:600">${esc(k.nama)}</span>
-        <div style="width:150px">${moneyInput(`b_${k.nama}`, lim[k.nama] || 0, `aria-label="Budget ${esc(k.nama)}"`)}</div></div>`).join('')}
+        <div style="width:150px">${moneyInput(`b_${k.nama}`, lim[k.nama] || 0, `aria-label="${esc(k.nama)} budget"`)}</div></div>`).join('')}
       <div style="display:flex;justify-content:space-between;font-weight:700;padding-top:4px"><span>Total</span><span class="num" id="bt"></span></div>
-      <button class="btn primary big" type="submit">Simpan budget</button>
+      <button class="btn primary big" type="submit">Save budget</button>
 </form>`,
     onMount(el, close) {
       const inputs = kats.map(k => [k.nama, bindMoney(el.querySelector(`[name="b_${CSS.escape(k.nama)}"]`), () => upd())]);
@@ -97,7 +97,7 @@ function openBudget(m) {
       el.querySelector('#bud').onsubmit = async e => {
         e.preventDefault();
         await saveBudget(m, Object.fromEntries(inputs.map(([n, i]) => [n, i.get()])));
-        close(); toast('Budget tersimpan');
+        close(); toast('Budget saved');
       };
     },
   });
@@ -113,11 +113,11 @@ function patternCard(m, today) {
   const big = biggestExpense(statTx(), m);
   if (!w.some(x => x.total > 0)) return '';
   return `<section class="card">
-    <div class="card-h"><h2>Pola</h2>${w[top].avg > 0 ? `<span class="badge muted">Paling boros ${DOW_LONG[top]}</span>` : ''}</div>
-    <div class="wk">${w.map((x, i) => `<div class="${i === top && x.avg > 0 ? 'on' : ''}" title="${DOW_LONG[i]}: ${esc(rupiah(x.avg))}/hari"><i style="height:${Math.max(4, (x.avg / max) * 100)}%"></i><small>${DOW[i]}</small></div>`).join('')}</div>
+    <div class="card-h"><h2>Patterns</h2>${w[top].avg > 0 ? `<span class="badge muted">Most spent on ${DOW_LONG[top]}s</span>` : ''}</div>
+    <div class="wk">${w.map((x, i) => `<div class="${i === top && x.avg > 0 ? 'on' : ''}" title="${DOW_LONG[i]}: ${esc(rupiah(x.avg))}/day"><i style="height:${Math.max(4, (x.avg / max) * 100)}%"></i><small>${DOW[i]}</small></div>`).join('')}</div>
     ${notes.length || big ? `<div class="rows" style="margin-top:8px">
-      ${notes.map(n => `<div class="row"><span class="tile sm c-ungu">${svg('repeat', 16)}</span><span class="mid"><span class="ttl">${esc(n.catatan)}</span><span class="meta">${n.count}× · ${rupiah(n.total / n.count)} per kali</span></span><span class="amt num">${rupiah(n.total)}</span></div>`).join('')}
-      ${big ? `<a class="row" href="#/catat?id=${encodeURIComponent(big.id)}">${catTile('keluar', big.kategori, 'sm')}<span class="mid"><span class="ttl">${esc(big.catatan || big.kategori)}</span><span class="meta">Terbesar bulan ini</span></span><span class="amt num t-expense">${rupiah(-big.nominal)}</span></a>` : ''}
+      ${notes.map(n => `<div class="row"><span class="tile sm c-ungu">${svg('repeat', 16)}</span><span class="mid"><span class="ttl">${esc(n.catatan)}</span><span class="meta">${n.count}× · ${rupiah(n.total / n.count)} each</span></span><span class="amt num">${rupiah(n.total)}</span></div>`).join('')}
+      ${big ? `<a class="row" href="#/catat?id=${encodeURIComponent(big.id)}">${catTile('keluar', big.kategori, 'sm')}<span class="mid"><span class="ttl">${esc(big.catatan || big.kategori)}</span><span class="meta">Biggest this month</span></span><span class="amt num t-expense">${rupiah(-big.nominal)}</span></a>` : ''}
     </div>` : ''}
   </section>`;
 }
@@ -142,31 +142,31 @@ export default {
     const rest = tb - spent;
     const left = dim - d + 1;
     let cells;
-    if (tb > 0 && isCur) cells = [[rest >= 0 ? 'Sisa' : 'Lewat', rupiah(Math.abs(rest))], ['Aman per hari', rupiah(Math.max(0, rest) / left)], ['Perkiraan', rupiah(fc.projected), fc.projected > tb]];
-    else if (tb > 0) cells = [[rest >= 0 ? 'Sisa' : 'Lewat', rupiah(Math.abs(rest))], ['Budget', rupiah(tb)], ['Rata-rata/hari', rupiah(spent / dim)]];
-    else cells = [['Rata-rata/hari', rupiah(spent / d)], [isCur ? 'Perkiraan' : 'Total', rupiah(fc.projected)], ['Tanpa belanja', `${noSpendDays(tx, m, today)} hari`]];
+    if (tb > 0 && isCur) cells = [[rest >= 0 ? 'Left' : 'Over', rupiah(Math.abs(rest))], ['Safe per day', rupiah(Math.max(0, rest) / left)], ['Forecast', rupiah(fc.projected), fc.projected > tb]];
+    else if (tb > 0) cells = [[rest >= 0 ? 'Left' : 'Over', rupiah(Math.abs(rest))], ['Budget', rupiah(tb)], ['Avg/day', rupiah(spent / dim)]];
+    else cells = [['Avg/day', rupiah(spent / d)], [isCur ? 'Forecast' : 'Total', rupiah(fc.projected)], ['No-spend days', `${noSpendDays(tx, m, today)}`]];
     const cmp = b.upto && b.prevTotal > 0 && b.pct !== 0
       ? `<span class="delta ${b.hemat ? 'up' : 'down'}">${svg(b.hemat ? 'arrowDown' : 'arrowUp', 14)}<span class="num">${pct(Math.abs(b.pct))}</span><em>vs ${monthShort(prevM)}</em></span>` : '';
     return `
       <header class="hero">
-        <div class="hero-top"><h1>Laporan</h1>
-          <a class="eye" href="#/rekap/${m}" aria-label="Rekap ${monthLong(m)}">${svg('share', 22)}</a></div>
+        <div class="hero-top"><h1>Reports</h1>
+          <a class="eye" href="#/rekap/${m}" aria-label="${monthLong(m)} recap">${svg('share', 22)}</a></div>
         <div class="mpick">
-          <button data-act="prev" aria-label="Bulan sebelumnya">${svg('chevronLeft')}</button>
+          <button data-act="prev" aria-label="Previous month">${svg('chevronLeft')}</button>
           <b>${monthLong(m)}</b>
-          <button data-act="next" aria-label="Bulan berikutnya" ${isCur ? 'disabled' : ''}>${svg('chevronRight')}</button>
+          <button data-act="next" aria-label="Next month" ${isCur ? 'disabled' : ''}>${svg('chevronRight')}</button>
         </div>
-        <div class="lbl">Pengeluaran</div>
+        <div class="lbl">Spending</div>
         <div class="total-row"><span class="total num">${money(spent)}</span></div>
-        <div class="hero-sub">${tb > 0 ? `<span class="num">${pct(spent / tb)} dari ${rupiah(tb)}</span>` : `<button class="pill" data-act="budget">Atur budget</button>`}${cmp}</div>
-        <div class="hero-pace">${pace(cumulativeSpending(tx, m), cumulativeSpending(tx, prevM), { budget: tb, upto: d, label: 'Laju pengeluaran kumulatif' })}
+        <div class="hero-sub">${tb > 0 ? `<span class="num">${pct(spent / tb)} of ${rupiah(tb)}</span>` : `<button class="pill" data-act="budget">Set budget</button>`}${cmp}</div>
+        <div class="hero-pace">${pace(cumulativeSpending(tx, m), cumulativeSpending(tx, prevM), { budget: tb, upto: d, label: 'Cumulative spending pace' })}
           <div class="pace-x"><span>1</span><span>${Math.round(dim / 2)}</span><span>${dim}</span></div></div>
         <div class="hstats">${cells.map(([l, v, bad]) => `<div><span>${l}</span><b class="num ${bad ? 'bad' : ''}">${v}</b></div>`).join('')}</div>
       </header>
       <div class="pad stack lift">
         ${catCard(m)}
-        <section class="card"><div class="card-h"><h2>Harian</h2></div>${dailyChart(m, today, tb)}</section>
-        <section class="card"><div class="card-h"><h2>Arus kas</h2></div>${flowChart(m)}</section>
+        <section class="card"><div class="card-h"><h2>Daily</h2></div>${dailyChart(m, today, tb)}</section>
+        <section class="card"><div class="card-h"><h2>Cash flow</h2></div>${flowChart(m)}</section>
         ${patternCard(m, today)}
       </div>`;
   },

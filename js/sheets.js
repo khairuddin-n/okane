@@ -3,7 +3,7 @@ import * as auth from './auth.js';
 
 const BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
-export class AuthError extends Error { constructor() { super('Perlu masuk lagi ke Google'); this.name = 'AuthError'; } }
+export class AuthError extends Error { constructor() { super('Please sign in to Google again'); this.name = 'AuthError'; } }
 
 export async function api(url, { method = 'GET', body } = {}) {
   const tok = auth.getToken();

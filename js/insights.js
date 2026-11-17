@@ -16,7 +16,7 @@ export function buildInsights(today) {
   const day = dayOf(today);
 
   for (const r of lowBalances(state.rekening, state.transaksi)) {
-    out.push({ tone: 'warn', ikon: 'bank', warna: 'oranye', label: `${r.nama} di bawah minimum`, value: rupiah(r.saldo), sub: `Minimum ${compact(r.saldo_minimum)}`, href: `#/rekening?id=${encodeURIComponent(r.id)}` });
+    out.push({ tone: 'warn', ikon: 'bank', warna: 'oranye', label: `${r.nama} below minimum`, value: rupiah(r.saldo), sub: `Minimum ${compact(r.saldo_minimum)}`, href: `#/rekening?id=${encodeURIComponent(r.id)}` });
   }
 
   const tb = totalBudget(budgetFor(state.budget, m));
@@ -25,11 +25,11 @@ export function buildInsights(today) {
     if (tb > 0) {
       const over = fc.projected - tb;
       out.push(over > 0
-        ? { tone: 'warn', ikon: 'investasi', warna: 'oranye', label: 'Perkiraan akhir bulan', value: rupiah(fc.projected), sub: `Lewat budget ${compact(over)}`, href: '#/laporan' }
-        : { tone: 'good', ikon: 'investasi', warna: 'hijau', label: 'Perkiraan akhir bulan', value: rupiah(fc.projected), sub: `Sisa budget ${compact(-over)}`, href: '#/laporan' });
+        ? { tone: 'warn', ikon: 'investasi', warna: 'oranye', label: 'Month-end forecast', value: rupiah(fc.projected), sub: `${compact(over)} over budget`, href: '#/laporan' }
+        : { tone: 'good', ikon: 'investasi', warna: 'hijau', label: 'Month-end forecast', value: rupiah(fc.projected), sub: `${compact(-over)} under budget`, href: '#/laporan' });
     } else {
       const prev = spentInMonth(tx, addMonths(m, -1));
-      out.push({ tone: 'info', ikon: 'investasi', warna: 'biru', label: 'Perkiraan akhir bulan', value: rupiah(fc.projected), sub: prev > 0 ? `${monthShort(addMonths(m, -1))} ${compact(prev)}` : `${compact(fc.avg)}/hari`, href: '#/laporan' });
+      out.push({ tone: 'info', ikon: 'investasi', warna: 'biru', label: 'Month-end forecast', value: rupiah(fc.projected), sub: prev > 0 ? `${monthShort(addMonths(m, -1))} ${compact(prev)}` : `${compact(fc.avg)}/day`, href: '#/laporan' });
     }
   }
 
@@ -37,26 +37,26 @@ export function buildInsights(today) {
   if (mv) {
     const up = mv.diff > 0;
     const st = catStyle('keluar', mv.kategori);
-    out.push({ tone: up ? 'warn' : 'good', ikon: st.ikon, warna: st.warna, label: `${mv.kategori} ${up ? 'naik' : 'turun'} ${pct(Math.abs(mv.diff) / mv.prev)}`, value: rupiah(mv.diff, { sign: true }), sub: `vs ${monthShort(addMonths(m, -1))} tgl 1–${day}`, href: `#/riwayat?kat=${encodeURIComponent(mv.kategori)}&bulan=${m}` });
+    out.push({ tone: up ? 'warn' : 'good', ikon: st.ikon, warna: st.warna, label: `${mv.kategori} ${up ? 'up' : 'down'} ${pct(Math.abs(mv.diff) / mv.prev)}`, value: rupiah(mv.diff, { sign: true }), sub: `vs ${monthShort(addMonths(m, -1))} 1–${day}`, href: `#/riwayat?kat=${encodeURIComponent(mv.kategori)}&bulan=${m}` });
   }
 
   const note = topNotes(tx, m, 1)[0];
-  if (note && note.count >= 3) out.push({ tone: 'info', ikon: 'repeat', warna: 'ungu', label: `${note.catatan} · ${note.count}×`, value: rupiah(note.total), sub: `${compact(note.total / note.count)} per kali`, href: '#/laporan' });
+  if (note && note.count >= 3) out.push({ tone: 'info', ikon: 'repeat', warna: 'ungu', label: `${note.catatan} · ${note.count}×`, value: rupiah(note.total), sub: `${compact(note.total / note.count)} each`, href: '#/laporan' });
 
   const big = biggestExpense(tx, m);
   if (big && fc.spent > 0 && big.nominal / fc.spent >= 0.15) {
     const st = catStyle('keluar', big.kategori);
-    out.push({ tone: 'info', ikon: st.ikon, warna: st.warna, label: 'Terbesar bulan ini', value: rupiah(big.nominal), sub: big.catatan || big.kategori, href: `#/catat?id=${encodeURIComponent(big.id)}` });
+    out.push({ tone: 'info', ikon: st.ikon, warna: st.warna, label: 'Biggest this month', value: rupiah(big.nominal), sub: big.catatan || big.kategori, href: `#/catat?id=${encodeURIComponent(big.id)}` });
   }
 
   const debts = openDebts(state.piutang, state.transaksi);
-  if (debts.length) out.push({ tone: 'info', ikon: 'people', warna: 'violet', label: 'Belum dikembalikan', value: rupiah(debtTotal(debts)), sub: `${new Set(debts.map(p => String(p.nama).toLowerCase())).size} orang`, href: '#/rekening' });
+  if (debts.length) out.push({ tone: 'info', ikon: 'people', warna: 'violet', label: 'Owed to you', value: rupiah(debtTotal(debts)), sub: `${new Set(debts.map(p => String(p.nama).toLowerCase())).size} people`, href: '#/rekening' });
 
   const streak = logStreak(state.transaksi, today);
-  if (streak >= 3) out.push({ tone: 'good', ikon: 'check', warna: 'hijau', label: 'Rutin mencatat', value: `${streak} hari`, sub: 'berturut-turut', href: '#/riwayat' });
+  if (streak >= 3) out.push({ tone: 'good', ikon: 'check', warna: 'hijau', label: 'Logging streak', value: `${streak} days`, sub: 'in a row', href: '#/riwayat' });
 
   const quiet = noSpendDays(tx, m, today);
-  if (quiet >= 1 && day >= 5) out.push({ tone: 'good', ikon: 'dompet', warna: 'teal', label: 'Hari tanpa belanja', value: `${quiet} hari`, sub: `bulan ini`, href: '#/laporan' });
+  if (quiet >= 1 && day >= 5) out.push({ tone: 'good', ikon: 'dompet', warna: 'teal', label: 'No-spend days', value: `${quiet}`, sub: `this month`, href: '#/laporan' });
 
   return out;
 }

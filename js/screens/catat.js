@@ -1,12 +1,12 @@
 import { svg } from '../icons.js';
 import { esc, rupiah, compact, group, parseAmount } from '../format.js';
 import { todayISO, hhmm, isoDate, nowISO, addDays } from '../dates.js';
-import { balances, activeAccounts, frequentEntries, matchNotes, guessCategory, applyGuess, guessLabel, num, liveDebts, debtNames, splitEven, scheduleFrom, scheduleLabel } from '../model.js';
+import { BILL_CATEGORY, balances, activeAccounts, frequentEntries, matchNotes, guessCategory, applyGuess, guessLabel, num, liveDebts, debtNames, splitEven, scheduleFrom, scheduleLabel } from '../model.js';
 import { tile, accChip, toast, undoToast, catTile, accName } from '../ui.js';
 import { state, saveTx, deleteTx, saveDebts, saveRule, withUndo, runAutomations, findAccount } from '../store.js';
 
-const TABS = [['keluar', 'Pengeluaran'], ['masuk', 'Pemasukan'], ['transfer', 'Transfer']];
-const READ_ONLY = { penyesuaian: 'Penyesuaian saldo', pelunasan: 'Piutang dikembalikan' };
+const TABS = [['keluar', 'Expense'], ['masuk', 'Income'], ['transfer', 'Transfer']];
+const READ_ONLY = { penyesuaian: 'Balance adjustment', pelunasan: 'Repayment received' };
 let f; // form state
 
 function freshForm(query) {
@@ -44,7 +44,7 @@ function freshForm(query) {
   if (query.tagihan) {
     const b = state.tagihan.find(x => x.id === query.tagihan);
     if (b) Object.assign(base, {
-      tipe: 'keluar', nominal: num(b.nominal), catatan: b.nama, sel: { kategori: b.kategori || 'Tagihan', manual: true, auto: null },
+      tipe: 'keluar', nominal: num(b.nominal), catatan: b.nama, sel: { kategori: b.kategori || BILL_CATEGORY, manual: true, auto: null },
       akun: b.akun || base.akun, akunManual: true, tagihan_id: b.id, periode: query.periode || '',
     });
   }
@@ -60,9 +60,25 @@ function accChips(selected, attr) {
   return activeAccounts(state.rekening).map(r => accChip(r, r.id === selected, bal.get(r.id)).replace('data-acc=', `data-${attr}=`)).join('');
 }
 
+// Grid ringkas: kategori yang paling sering dipakai (90 hari) + yang terpilih, sisanya di balik "More".
+const SHORT = 7;
+let showAllCats = false;
+function shortList(list) {
+  const from = addDays(todayISO(), -90);
+  const used = new Map();
+  for (const t of state.transaksi) if (!t.dihapus && t.tipe === f.tipe && t.tanggal >= from) used.set(t.kategori, (used.get(t.kategori) || 0) + 1);
+  const top = [...list].sort((a, b) => (used.get(b.nama) || 0) - (used.get(a.nama) || 0) || num(a.urutan) - num(b.urutan)).slice(0, SHORT).map(k => k.nama);
+  const keep = new Set([...top, f.sel.kategori]);
+  return list.filter(k => keep.has(k.nama));
+}
 function catsHTML() {
-  return cats(f.tipe).map(k => `<button type="button" class="cat ${k.nama === f.sel.kategori ? 'on' : ''}" data-cat="${esc(k.nama)}" aria-pressed="${k.nama === f.sel.kategori}">
-    ${tile(k.ikon, k.warna, 'sm')}<span>${esc(k.nama)}</span></button>`).join('');
+  const all = cats(f.tipe);
+  const list = showAllCats || all.length <= SHORT + 1 ? all : shortList(all);
+  const btn = k => `<button type="button" class="cat ${k.nama === f.sel.kategori ? 'on' : ''}" data-cat="${esc(k.nama)}" aria-pressed="${k.nama === f.sel.kategori}">
+    ${tile(k.ikon, k.warna, 'sm')}<span>${esc(k.nama)}</span></button>`;
+  const toggle = all.length > SHORT + 1 ? `<button type="button" class="cat more" data-act="cats-more" aria-expanded="${showAllCats}">
+    <span class="tile sm">${svg(showAllCats ? 'arrowUp' : 'lainnya', 16)}</span><span>${showAllCats ? 'Less' : `All ${all.length}`}</span></button>` : '';
+  return list.map(btn).join('') + toggle;
 }
 
 function suggestions() {
@@ -84,17 +100,17 @@ const myShare = () => Math.max(0, f.nominal - talTotal());
 function talHTML() {
   const names = debtNames(state.piutang);
   return `<section class="card tal">
-    <div class="label" style="letter-spacing:.04em">DITALANGIN UNTUK</div>
+    <div class="label" style="letter-spacing:.04em">PAID ON BEHALF OF</div>
     ${f.orang.map((o, i) => o.lunas
-      ? `<div class="tal-row"><b style="flex:1">${esc(o.nama)}</b><span class="paid-tag">${svg('check', 14)}Lunas</span><b class="num">${rupiah(o.nominal, { raw: true })}</b></div>`
+      ? `<div class="tal-row"><b style="flex:1">${esc(o.nama)}</b><span class="paid-tag">${svg('check', 14)}Paid back</span><b class="num">${rupiah(o.nominal, { raw: true })}</b></div>`
       : `<div class="tal-row">
-        <input class="input" data-tn="${i}" list="tal-names" placeholder="Nama" autocomplete="off" value="${esc(o.nama)}" aria-label="Nama orang ${i + 1}">
-        <div class="money"><input class="input num" data-ta="${i}" inputmode="numeric" autocomplete="off" placeholder="0" value="${o.nominal ? group(o.nominal) : ''}" aria-label="Nominal orang ${i + 1}"></div>
-        <button type="button" class="icon-btn" data-td="${i}" aria-label="Hapus orang ${i + 1}">${svg('x', 18)}</button></div>`).join('')}
+        <input class="input" data-tn="${i}" list="tal-names" placeholder="Name" autocomplete="off" value="${esc(o.nama)}" aria-label="Person ${i + 1} name">
+        <div class="money"><input class="input num" data-ta="${i}" inputmode="numeric" autocomplete="off" placeholder="0" value="${o.nominal ? group(o.nominal) : ''}" aria-label="Person ${i + 1} amount"></div>
+        <button type="button" class="icon-btn" data-td="${i}" aria-label="Remove person ${i + 1}">${svg('x', 18)}</button></div>`).join('')}
     <datalist id="tal-names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
-    <div class="row2"><button type="button" class="btn sm" data-act="tal-add">${svg('plus', 16)} Tambah orang</button>
-      <button type="button" class="btn sm" data-act="tal-split">Bagi rata</button></div>
-    <div class="tal-me"><span>Bagianmu</span><b class="num" id="tal-me">${rupiah(myShare(), { raw: true })}</b></div>
+    <div class="row2"><button type="button" class="btn sm" data-act="tal-add">${svg('plus', 16)} Add person</button>
+      <button type="button" class="btn sm" data-act="tal-split">Split evenly</button></div>
+    <div class="tal-me"><span>Your share</span><b class="num" id="tal-me">${rupiah(myShare(), { raw: true })}</b></div>
   </section>`;
 }
 
@@ -106,11 +122,11 @@ function optsHTML() {
   const label = f.ulang ? scheduleLabel(scheduleFrom(f.ulang, f.tanggal)) : '';
   return `<div>
     <div class="chips">
-      ${canRepeat ? `<button type="button" class="chip opt ${f.ulang ? 'on' : ''}" data-opt="ulang" aria-pressed="${!!f.ulang}">${svg('repeat', 16)}Ulangi</button>` : ''}
-      ${canTal ? `<button type="button" class="chip opt ${f.talangan ? 'on' : ''}" data-opt="talangan" aria-pressed="${f.talangan}">${svg('people', 16)}Talangan</button>` : ''}
+      ${canRepeat ? `<button type="button" class="chip opt ${f.ulang ? 'on' : ''}" data-opt="ulang" aria-pressed="${!!f.ulang}">${svg('repeat', 16)}Repeat</button>` : ''}
+      ${canTal ? `<button type="button" class="chip opt ${f.talangan ? 'on' : ''}" data-opt="talangan" aria-pressed="${f.talangan}">${svg('people', 16)}Paid for others</button>` : ''}
     </div>
-    ${canRepeat && f.ulang ? `<div class="seg" style="margin-top:10px"><button type="button" data-ulang="bulanan" class="${f.ulang === 'bulanan' ? 'on' : ''}">Tiap bulan</button><button type="button" data-ulang="mingguan" class="${f.ulang === 'mingguan' ? 'on' : ''}">Tiap minggu</button></div>
-      <p class="muted" style="font-size:13px;margin-top:6px" id="ulang-l">${esc(label)} · dicatat otomatis</p>` : ''}
+    ${canRepeat && f.ulang ? `<div class="seg" style="margin-top:10px"><button type="button" data-ulang="bulanan" class="${f.ulang === 'bulanan' ? 'on' : ''}">Monthly</button><button type="button" data-ulang="mingguan" class="${f.ulang === 'mingguan' ? 'on' : ''}">Weekly</button></div>
+      <p class="muted" style="font-size:13px;margin-top:6px" id="ulang-l">${esc(label)} · logged automatically</p>` : ''}
     ${canTal && f.talangan ? `<div style="margin-top:10px">${talHTML()}</div>` : ''}
   </div>`;
 }
@@ -121,53 +137,54 @@ function render() {
   if (READ_ONLY[f.tipe]) {
     const t = f.original;
     return `<div class="catat">
-      <div class="top with-back"><button class="icon-btn" data-act="close" aria-label="Tutup">${svg('x')}</button><h1>${READ_ONLY[f.tipe]}</h1></div>
+      <div class="top with-back"><button class="icon-btn" data-act="close" aria-label="Close">${svg('x')}</button><h1>${READ_ONLY[f.tipe]}</h1></div>
       <div class="pad stack">
         <div class="card" style="display:flex;gap:12px;align-items:center">${catTile(f.tipe)}
           <div style="flex:1;min-width:0"><b>${esc(f.tipe === 'pelunasan' ? (t.catatan || accName(t.akun)) : accName(t.akun))}</b><div class="muted" style="font-size:13px">${f.tipe === 'pelunasan' ? `${esc(accName(t.akun))} · ` : ''}${esc(t.tanggal)} · ${esc(t.jam)}</div></div>
           <b class="num">${rupiah(t.nominal, { sign: true })}</b></div>
-        <button class="btn danger-text big" data-act="delete">${svg('trash', 18)} Hapus</button>
+        <button class="btn danger-text big" data-act="delete">${svg('trash', 18)} Delete</button>
       </div></div>`;
   }
   return `<div class="catat">
     <div class="top with-back">
-      <button class="icon-btn" data-act="close" aria-label="Tutup">${svg('x')}</button>
-      <h1>${editing ? 'Ubah transaksi' : 'Catat transaksi'}</h1>
-      ${editing ? `<button class="icon-btn" data-act="delete" aria-label="Hapus transaksi" style="color:var(--expense)">${svg('trash')}</button>` : ''}
+      <button class="icon-btn" data-act="close" aria-label="Close">${svg('x')}</button>
+      <h1>${editing ? 'Edit transaction' : 'New transaction'}</h1>
+      ${editing ? `<button class="icon-btn" data-act="delete" aria-label="Delete transaction" style="color:var(--expense)">${svg('trash')}</button>` : ''}
     </div>
     <div class="pad"><div class="seg" role="tablist">${TABS.map(([k, l]) => `<button type="button" role="tab" data-tipe="${k}" class="${f.tipe === k ? 'on' : ''}" aria-selected="${f.tipe === k}">${l}</button>`).join('')}</div></div>
 
     <label class="amount ${f.tipe}"><span>Rp</span>
-      <input id="amt" inputmode="numeric" autocomplete="off" placeholder="0" aria-label="Nominal" value="${f.nominal ? group(f.nominal) : ''}"></label>
-    <div class="chips quick">${[10000, 25000, 50000, 100000].map(v => `<button type="button" class="chip" data-quick="${v}">${v / 1000}rb</button>`).join('')}</div>
+      <input id="amt" inputmode="numeric" autocomplete="off" placeholder="0" aria-label="Amount" value="${f.nominal ? group(f.nominal) : ''}"></label>
+    <div class="chips quick">${[10000, 25000, 50000, 100000].map(v => `<button type="button" class="chip" data-quick="${v}">${v / 1000}K</button>`).join('')}</div>
 
     <div class="pad stack" style="margin-top:10px">
       ${isTransfer ? `
-        <div><div class="label">Dari rekening</div><div class="chips scroll" id="from">${accChips(f.akun, 'from')}</div></div>
-        <div class="swap-row"><button type="button" class="icon-btn" data-act="swap" aria-label="Tukar rekening" style="background:var(--surface);box-shadow:var(--shadow)">${svg('swap')}</button></div>
-        <div><div class="label">Ke rekening</div><div class="chips scroll" id="to">${accChips(f.akunTujuan, 'to')}</div></div>
-        <label class="field"><span>Biaya admin</span>
+        <p class="hint">Between your own accounts. Paying someone? Use Expense.</p>
+        <div><div class="label">From</div><div class="chips scroll" id="from">${accChips(f.akun, 'from')}</div></div>
+        <div class="swap-row"><button type="button" class="icon-btn" data-act="swap" aria-label="Swap accounts" style="background:var(--surface);box-shadow:var(--shadow)">${svg('swap')}</button></div>
+        <div><div class="label">To</div><div class="chips scroll" id="to">${accChips(f.akunTujuan, 'to')}</div></div>
+        <label class="field"><span>Transfer fee</span>
           <div class="money"><input id="fee" class="input num" inputmode="numeric" autocomplete="off" placeholder="0" value="${f.biaya ? group(f.biaya) : ''}"></div></label>
-        <label class="field"><span>Catatan</span><input id="note" class="input" autocomplete="off" placeholder="—" value="${esc(f.catatan)}"></label>
+        <label class="field"><span>Note</span><input id="note" class="input" autocomplete="off" placeholder="—" value="${esc(f.catatan)}"></label>
       ` : `
-        <div><label class="field"><span>Catatan</span>
-          <input id="note" class="input" autocomplete="off" placeholder="${f.tipe === 'keluar' ? 'Nasi padang, bensin…' : 'Gaji, bonus…'}" value="${esc(f.catatan)}"></label>
+        <div><label class="field"><span>Note</span>
+          <input id="note" class="input" autocomplete="off" placeholder="${f.tipe === 'keluar' ? 'Lunch, fuel, gym…' : 'Salary, bonus…'}" value="${esc(f.catatan)}"></label>
           <div class="chips scroll sugg" id="sugg">${suggHTML()}</div></div>
-        <div><div class="label-row"><span class="label">Kategori</span><span class="auto-badge" id="badge">${esc(guessLabel(f.sel.auto))}</span></div>
+        <div><div class="label-row"><span class="label">Category</span><span class="auto-badge" id="badge">${esc(guessLabel(f.sel.auto))}</span></div>
           <div class="cat-grid" id="cats">${catsHTML()}</div></div>
-        <div><div class="label">${f.tipe === 'keluar' ? 'Bayar pakai' : 'Masuk ke'}</div><div class="chips scroll" id="accs">${accChips(f.akun, 'acc')}</div></div>
+        <div><div class="label">${f.tipe === 'keluar' ? 'Paid from' : 'Received in'}</div><div class="chips scroll" id="accs">${accChips(f.akun, 'acc')}</div></div>
       `}
       ${optsHTML()}
-      <div class="card" style="padding:4px 14px"><label class="inline-field"><span>Tanggal</span>
+      <div class="card" style="padding:4px 14px"><label class="inline-field"><span>Date</span>
         <input id="when" type="datetime-local" value="${esc(f.tanggal)}T${esc(f.jam)}"></label></div>
     </div>
-    <div class="save-bar"><button class="btn primary big" data-act="save">Simpan</button></div>
+    <div class="save-bar"><button class="btn primary big" data-act="save">Save</button></div>
   </div>`;
 }
 
 export default {
   live: false,
-  enter(query) { f = freshForm(query); },
+  enter(query) { f = freshForm(query); showAllCats = false; },
   render: () => render(),
   bind(root, ctx) {
     const $ = s => root.querySelector(s);
@@ -178,7 +195,7 @@ export default {
     if (del) del.onclick = async () => {
       ctx.userAction?.();
       const undo = await withUndo(() => deleteTx(f.id));
-      undoToast('Transaksi dihapus', undo);
+      undoToast('Transaction deleted', undo);
       ctx.back();
     };
     if (READ_ONLY[f.tipe]) return;
@@ -221,9 +238,13 @@ export default {
       $('#sugg').innerHTML = suggHTML(); bindSugg();
     });
 
-    const bindCats = () => root.querySelectorAll('[data-cat]').forEach(b => {
-      b.onclick = () => { f.sel = { kategori: b.dataset.cat, manual: true, auto: null }; $('#badge').textContent = ''; $('#cats').innerHTML = catsHTML(); bindCats(); };
-    });
+    const bindCats = () => {
+      root.querySelectorAll('[data-cat]').forEach(b => {
+        b.onclick = () => { f.sel = { kategori: b.dataset.cat, manual: true, auto: null }; $('#badge').textContent = ''; $('#cats').innerHTML = catsHTML(); bindCats(); };
+      });
+      const more = $('[data-act="cats-more"]');
+      if (more) more.onclick = () => { showAllCats = !showAllCats; $('#cats').innerHTML = catsHTML(); bindCats(); };
+    };
     const bindAccs = () => root.querySelectorAll('[data-acc]').forEach(b => {
       b.onclick = () => { f.akun = b.dataset.acc; f.akunManual = true; $('#accs').innerHTML = accChips(f.akun, 'acc'); bindAccs(); };
     });
@@ -259,7 +280,7 @@ export default {
       b.onclick = () => {
         if (b.dataset.opt === 'ulang') f.ulang = f.ulang ? '' : 'bulanan';
         else {
-          if (f.talangan && f.orang.some(o => o.lunas)) { toast('Ada talangan yang sudah lunas'); return; }
+          if (f.talangan && f.orang.some(o => o.lunas)) { toast('Someone has already paid you back'); return; }
           f.talangan = !f.talangan;
           if (f.talangan && !f.orang.length) f.orang.push({ nama: '', nominal: 0 });
         }
@@ -284,7 +305,7 @@ export default {
     if (add) add.onclick = () => { f.orang.push({ nama: '', nominal: 0 }); rerender(); const all = root.querySelectorAll('[data-tn]'); all[all.length - 1]?.focus(); };
     const split = $('[data-act="tal-split"]');
     if (split) split.onclick = () => {
-      if (!(f.nominal > 0)) { toast('Isi nominal dulu'); amt.focus(); return; }
+      if (!(f.nominal > 0)) { toast('Enter an amount first'); amt.focus(); return; }
       const open = f.orang.filter(o => !o.lunas);
       const locked = f.orang.filter(o => o.lunas).reduce((s, o) => s + num(o.nominal), 0);
       const each = splitEven(f.nominal - locked, open.length);
@@ -296,23 +317,23 @@ export default {
       const [d, t] = String(e.target.value).split('T');
       if (d) { f.tanggal = d; f.jam = (t || '00:00').slice(0, 5); }
       const l = $('#ulang-l');
-      if (l && f.ulang) l.textContent = `${scheduleLabel(scheduleFrom(f.ulang, f.tanggal))} · dicatat otomatis`;
+      if (l && f.ulang) l.textContent = `${scheduleLabel(scheduleFrom(f.ulang, f.tanggal))} · logged automatically`;
     });
 
     $('[data-act="save"]').onclick = async () => {
       ctx.userAction?.();
-      if (!(f.nominal > 0)) { toast('Isi nominal dulu'); amt.focus(); return; }
-      if (!f.akun || !findAccount(f.akun)) { toast('Pilih rekening dulu'); return; }
+      if (!(f.nominal > 0)) { toast('Enter an amount first'); amt.focus(); return; }
+      if (!f.akun || !findAccount(f.akun)) { toast('Choose an account first'); return; }
       if (f.tipe === 'transfer') {
-        if (!f.akunTujuan || f.akunTujuan === f.akun) { toast('Pilih rekening tujuan yang berbeda'); return; }
-      } else if (!f.sel.kategori) { toast('Pilih kategori dulu'); return; }
+        if (!f.akunTujuan || f.akunTujuan === f.akun) { toast('Choose a different destination account'); return; }
+      } else if (!f.sel.kategori) { toast('Choose a category first'); return; }
 
       // talangan: baris kosong diabaikan
       const useTal = f.tipe === 'keluar' && f.talangan;
       const orang = useTal ? f.orang.filter(o => o.lunas || String(o.nama).trim() || num(o.nominal) > 0) : [];
-      if (orang.some(o => !String(o.nama).trim())) { toast('Isi nama orangnya'); return; }
-      if (orang.some(o => !(num(o.nominal) > 0))) { toast('Isi nominal talangan'); return; }
-      if (orang.reduce((s, o) => s + num(o.nominal), 0) > f.nominal) { toast('Talangan melebihi nominal'); return; }
+      if (orang.some(o => !String(o.nama).trim())) { toast('Enter each person\'s name'); return; }
+      if (orang.some(o => !(num(o.nominal) > 0))) { toast('Enter how much each person owes'); return; }
+      if (orang.reduce((s, o) => s + num(o.nominal), 0) > f.nominal) { toast('Amounts owed exceed the total'); return; }
 
       const repeat = !f.id && !f.tagihan_id && f.ulang;
       const ruleId = repeat ? crypto.randomUUID() : '';
@@ -336,7 +357,7 @@ export default {
         });
       });
       try { navigator.vibrate?.(12); } catch {}
-      undoToast(ruleId ? 'Tersimpan · berulang' : 'Tersimpan', undo);
+      undoToast(ruleId ? 'Saved · repeating' : 'Saved', undo);
       if (ruleId) runAutomations().catch(console.warn); // tanggal mundur: periode yang terlewat langsung dicatat
       ctx.back();
     };

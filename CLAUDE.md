@@ -14,7 +14,7 @@ Kerjakan bertahap sesuai urutan di bagian "Milestone" (§11). Commit setiap mile
 - **Tanpa build step.** HTML, CSS, dan JavaScript (ES modules) biasa, tanpa framework dan tanpa bundler, supaya mudah dirawat.
 - **Offline-first.** UI membaca dari cache IndexedDB, lalu sinkron ke Sheets di belakang layar.
 - **Tampilan tetap sederhana.** Setiap fitur tambahan disembunyikan di permukaan yang sudah ada (chip opsi, tab, baris di Pengaturan, bottom sheet). Jangan menambah item navigasi bawah, dan jangan menampilkan elemen baru secara default kalau tidak sedang dibutuhkan.
-- **Bahasa UI: Indonesia.** Format uang `Rp1.234.567` (pemisah ribuan titik, tanpa desimal). Format tanggal Indonesia, misalnya "Sab, 14 Nov".
+- **Bahasa UI: Inggris** (sejak v2.1, lihat §15). Format uang tetap `Rp1.234.567` (pemisah ribuan titik, tanpa desimal). Format tanggal Inggris, misalnya "Sat, 14 Nov". Nama sheet/kolom di Google Sheets tetap Indonesia (kunci data).
 - Kode (nama variabel dan fungsi) dalam Bahasa Inggris. Komentar boleh Indonesia.
 
 ## 2. Struktur proyek
@@ -602,3 +602,14 @@ Pengguna meminta perombakan total di luar roadmap §13. Yang berlaku sekarang:
 - **Sudah ada**: Batalkan (`store.withUndo`), transaksi berulang, talangan & piutang, target, cicilan, rekap, cek saldo mingguan, kunci PIN (`js/lock.js`), analitik (`balanceSeries`, `forecastMonth`, `upcoming`, dst. di model.js), kartu insight (`js/insights.js`), grafik (`js/charts.js`).
 - **Belum ada** (dari §13.3): impor CSV, foto struk, buku bersama.
 - **Desain**: token di awal `css/app.css`; lapisan komponen v2 di bagian akhir file. Font tampilan `--display` (Space Grotesk) untuk judul dan angka besar. Hero `.hero` dipakai Beranda dan Laporan.
+
+## 15. Status v2.1 (permintaan pengguna, 17 Nov 2026)
+
+- **UI seluruhnya bahasa Inggris** (teks, tanggal, toast, privacy.html, manifest). Nilai data internal (`keluar`/`masuk`, nama sheet & kolom) tetap Indonesia. Format ringkas: `25K`, `8.5M`, `1.2B`.
+- **Font sistem** (`--sans`: -apple-system/SF, Roboto, Segoe UI). Tidak ada lagi Google Fonts (juga lebih privat & cepat). `--display` = `--sans`.
+- **Kategori v2**: 23 pengeluaran + 8 pemasukan di `DEFAULT_CATEGORIES` (Food, Snacks, Groceries, Shopping, Transport, Rent, Utilities, Phone & Internet, Subscriptions, Health, Fitness, Personal Care, …). Konstanta `ADMIN_CATEGORY` = Bank Fees, `OTHER_CATEGORY` = Other, `BILL_CATEGORY` = Utilities (model.js). Kamus kata kunci dua bahasa.
+- **Migrasi kategori** (`js/migrate.js`, fungsi murni + test): kategori bawaan lama diganti nama, lama diarsipkan; "Tagihan"/"Lainnya" ditebak ulang dari catatan (Kos → Rent, gym → Fitness). Sekali per data lewat `meta.category_version = 2`. Google: jalan setelah pull di `sync.syncAll`; lokal: saat boot.
+- **Layar Catat**: grid kategori ringkas (7 paling sering 90 hari + terpilih + tombol "All n").
+- **Kerapian**: judul baris boleh 2 baris (tidak dipotong), meta baris tanpa jam, meta tagihan hanya jatuh tempo, ringkasan Riwayat satu kartu.
+- **Catatan privasi**: satu baris di bawah tombol login (onboarding) dan di atas tombol Sign out (Settings), link ke privacy.html.
+- **Belum**: impor e-statement (sedang didiskusikan), README masih Indonesia.
