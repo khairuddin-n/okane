@@ -776,12 +776,40 @@ body, .row .ttl, .row .amt, .li .ttl, .btn, .cat-row .hd .mid, .tgt-h .ttl, .min
 .f-active .chip.on .ic { margin-left: 2px; opacity: .85; }
 .day-h { display: flex; justify-content: space-between; margin: 18px 20px 6px; font-size: var(--fs-13); font-weight: 600; color: var(--muted); }
 .day-c { margin: 0 16px; padding: 2px 16px; }
-.f-sheet .chips { gap: 6px; }
-.f-sheet .chip { min-height: 36px; padding: 6px 12px; font-size: var(--fs-14); }
-.f-sheet .chip .tile.xs { width: 22px; height: 22px; border-radius: 7px; margin-left: -4px; }
-.f-sheet .chip.on .tile.xs { background: rgba(255,255,255,.2); color: inherit; }
-.sub-l { font-size: var(--fs-12); font-weight: 600; color: var(--muted); margin: 8px 0 6px; }
-.f-foot { position: sticky; bottom: 0; padding: 12px 0 calc(4px + env(safe-area-inset-bottom)); background: var(--surface); }
 /* waktu di bawah nominal */
 .row .amt small { margin-top: 2px; font-weight: 500; font-size: var(--fs-12); color: var(--muted); }
-.f-foot { box-shadow: 0 40px 0 0 var(--surface), 0 -10px 14px -12px rgba(0,0,0,.25); z-index: 1; }
+
+/* ---------- v2.3.1: bottom sheet dengan footer tetap + sheet filter ---------- */
+.sheet:focus { outline: none; }
+.sheet.has-foot { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.sheet.has-foot .sheet-b { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -16px; padding: 0 16px 8px; overscroll-behavior: contain; }
+.sheet-f { flex: none; margin: 0 -16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface); }
+
+.f-sec { padding: 14px 0; }
+.f-sec + .f-sec { border-top: 1px solid var(--line); }
+.f-sec:first-child { padding-top: 4px; }
+.f-sec h3 { font-size: var(--fs-13); font-weight: 600; color: var(--muted); margin: 0 0 10px; }
+.f-row { margin: 0 -16px; padding: 0 16px 2px; scroll-padding: 0 16px; }
+.f-row .chip { min-height: 38px; }
+.f-dates { margin-top: 12px; }
+.f-link { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 14px; border-radius: 12px; background: var(--chip-bg); color: var(--muted); text-align: left; font-size: var(--fs-15); }
+.f-link-v { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f-link-v.set { color: var(--text); font-weight: 600; }
+
+.f-sub { display: flex; align-items: center; justify-content: space-between; margin: 0 0 6px; }
+.f-back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: var(--fs-15); font-weight: 600; color: var(--text); }
+.f-clear { min-height: 44px; padding: 0 4px; font-size: var(--fs-14); font-weight: 600; color: var(--primary-text); }
+.f-group { font-size: var(--fs-12); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 14px 0 4px; }
+.f-checks { display: flex; flex-direction: column; }
+.f-check { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 0; text-align: left; color: var(--text); font-size: var(--fs-15); }
+.f-check + .f-check { border-top: 1px solid var(--line); }
+.f-check > span:not(.tile) { flex: 1; }
+.f-check .box { flex: none; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; border: 1.5px solid var(--border); color: var(--on-primary); transition: background .12s, border-color .12s; }
+.f-check.on { font-weight: 600; }
+.f-check.on .box { background: var(--primary); border-color: var(--primary); }
+
+.f-foot { display: flex; align-items: center; gap: 12px; }
+.f-foot .btn { flex: 1; }
+.f-foot .btn:disabled { opacity: .5; }
+.f-reset { min-height: 48px; padding: 0 8px; font-size: var(--fs-15); font-weight: 600; color: var(--primary-text); }
+.f-reset[hidden] { display: none; }

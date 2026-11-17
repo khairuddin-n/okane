@@ -103,14 +103,14 @@ export function undoToast(msg, undo) {
 }
 
 // ---------- Bottom sheet ----------
-export function openSheet({ title, body, onMount, onClose }) {
+export function openSheet({ title, body, footer = '', onMount, onClose }) {
   const root = document.getElementById('sheet-root');
   const wrap = document.createElement('div');
   wrap.className = 'sheet-wrap';
-  wrap.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+  wrap.innerHTML = `<div class="sheet ${footer ? 'has-foot' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}" tabindex="-1">
     <div class="grab"></div>
     <div class="sheet-h"><h2>${esc(title)}</h2><button class="icon-btn" data-close aria-label="Close">${svg('x')}</button></div>
-    <div class="sheet-b">${body}</div></div>`;
+    <div class="sheet-b">${body}</div>${footer ? `<div class="sheet-f">${footer}</div>` : ''}</div>`;
   root.appendChild(wrap);
   const prevFocus = document.activeElement;
   const close = () => {
@@ -127,7 +127,8 @@ export function openSheet({ title, body, onMount, onClose }) {
   window.addEventListener('hashchange', close);
   const sheet = wrap.querySelector('.sheet');
   onMount?.(sheet, close);
-  (sheet.querySelector('[autofocus]') || sheet.querySelector('.sheet-h button')).focus();
+  // fokus ke isian ber-autofocus; kalau tidak ada, ke lembarnya sendiri (tanpa cincin fokus di tombol tutup)
+  (sheet.querySelector('[autofocus]') || sheet).focus({ preventScroll: true });
   return close;
 }
 

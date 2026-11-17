@@ -7,7 +7,7 @@ import { activeAccounts, byNewest, normalize, num, ADMIN_CATEGORY, OTHER_CATEGOR
 import { txRow, accName, openSheet, tile } from '../ui.js';
 import { state } from '../store.js';
 
-const PERIODS = [['all', 'All time'], ['this', 'This month'], ['last', 'Last month'], ['3m', 'Last 3 months'], ['year', 'This year'], ['custom', 'Custom']];
+const PERIODS = [['all', 'All time'], ['this', 'This month'], ['last', 'Last month'], ['3m', 'Last 3 months'], ['year', 'This year'], ['custom', 'Custom range']];
 const TYPES = [['all', 'All'], ['keluar', 'Expense'], ['masuk', 'Income'], ['transfer', 'Transfer']];
 const fresh = () => ({ period: 'all', from: '', to: '', tipe: 'all', akun: '', kats: [] }); // kats: ['keluar|Food', …]
 
@@ -112,51 +112,100 @@ function activeChips() {
 const catsFor = tipe => state.kategori.filter(k => !k.arsip && (tipe === 'all' ? k.tipe === 'keluar' || k.tipe === 'masuk' : k.tipe === tipe))
   .sort((a, b) => (a.tipe === b.tipe ? 0 : a.tipe === 'keluar' ? -1 : 1) || num(a.urutan) - num(b.urutan));
 
+// Bottom sheet filter: bagian ringkas (satu baris per pilihan), kategori lewat halaman checklist di dalam sheet.
 function openFilters(onApply) {
   const d = { ...F, kats: [...F.kats] };
-  const body = () => {
-    const cats = d.tipe === 'transfer' ? [] : catsFor(d.tipe);
-    const both = d.tipe === 'all';
-    const catChip = k => { const key = `${k.tipe}|${k.nama}`; const on = d.kats.includes(key); return `<button type="button" class="chip ${on ? 'on' : ''}" data-k="${esc(key)}" aria-pressed="${on}">${tile(k.ikon, k.warna, 'xs')}${esc(k.nama)}</button>`; };
-    const n = filtered(d).length;
-    return `<div class="stack f-sheet">
-      <div><div class="label">Date</div><div class="chips">${PERIODS.map(([k, l]) => `<button type="button" class="chip ${d.period === k ? 'on' : ''}" data-p="${k}">${l}</button>`).join('')}</div>
-        ${d.period === 'custom' ? `<div class="row2" style="margin-top:10px"><label class="field"><span>From</span><input class="input" type="date" data-d="from" value="${esc(d.from)}"></label><label class="field"><span>To</span><input class="input" type="date" data-d="to" value="${esc(d.to)}"></label></div>` : ''}</div>
-      <div><div class="label">Type</div><div class="seg">${TYPES.map(([k, l]) => `<button type="button" data-t="${k}" class="${d.tipe === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>
-      <div><div class="label">Account</div><div class="chips"><button type="button" class="chip ${!d.akun ? 'on' : ''}" data-a="">All</button>${activeAccounts(state.rekening).map(r => `<button type="button" class="chip ${d.akun === r.id ? 'on' : ''}" data-a="${esc(r.id)}">${esc(r.nama)}</button>`).join('')}</div></div>
-      ${cats.length ? `<div><div class="label">Categories</div>
-        ${both ? `<div class="sub-l">Expense</div><div class="chips">${cats.filter(k => k.tipe === 'keluar').map(catChip).join('')}</div><div class="sub-l">Income</div><div class="chips">${cats.filter(k => k.tipe === 'masuk').map(catChip).join('')}</div>`
-          : `<div class="chips">${cats.map(catChip).join('')}</div>`}</div>` : ''}
-      <div class="row2 f-foot"><button type="button" class="btn ghost" data-act="reset">Reset</button><button type="button" class="btn primary" data-act="apply">Show ${n} ${n === 1 ? 'result' : 'results'}</button></div>
-    </div>`;
+  let view = 'main'; // 'main' | 'cats'
+  const resultLabel = () => { const n = filtered(d).length; return n ? `Show ${n} ${n === 1 ? 'result' : 'results'}` : 'No results'; };
+  const catSummary = () => {
+    if (!d.kats.length) return 'Any category';
+    const names = d.kats.map(k => k.split('|')[1]);
+    return names.length <= 2 ? names.join(', ') : `${names.length} selected`;
   };
+  const chipRow = (items, cur, attr) => `<div class="chips scroll f-row">${items.map(([k, l]) => `<button type="button" class="chip ${cur === k ? 'on' : ''}" data-${attr}="${esc(k)}" aria-pressed="${cur === k}">${esc(l)}</button>`).join('')}</div>`;
+
+  const mainView = () => `
+    <section class="f-sec"><h3>Date</h3>
+      ${chipRow(PERIODS, d.period, 'p')}
+      ${d.period === 'custom' ? `<div class="row2 f-dates"><label class="field"><span>From</span><input class="input" type="date" data-d="from" value="${esc(d.from)}" max="${esc(d.to || '')}"></label>
+        <label class="field"><span>To</span><input class="input" type="date" data-d="to" value="${esc(d.to)}" min="${esc(d.from || '')}"></label></div>` : ''}
+    </section>
+    <section class="f-sec"><h3>Type</h3>
+      <div class="seg">${TYPES.map(([k, l]) => `<button type="button" data-t="${k}" class="${d.tipe === k ? 'on' : ''}" aria-pressed="${d.tipe === k}">${l}</button>`).join('')}</div>
+    </section>
+    <section class="f-sec"><h3>Account</h3>
+      ${chipRow([['', 'All accounts'], ...activeAccounts(state.rekening).map(r => [r.id, r.nama])], d.akun, 'a')}
+    </section>
+    ${d.tipe === 'transfer' ? '' : `<section class="f-sec"><h3>Category</h3>
+      <button type="button" class="f-link" data-act="cats"><span class="f-link-v ${d.kats.length ? 'set' : ''}">${esc(catSummary())}</span>${svg('chevronRight', 18)}</button>
+    </section>`}`;
+
+  const catsView = () => {
+    const cats = catsFor(d.tipe);
+    const group = (tipe, label) => {
+      const list = cats.filter(k => k.tipe === tipe);
+      if (!list.length) return '';
+      return `${d.tipe === 'all' ? `<div class="f-group">${label}</div>` : ''}<div class="f-checks">${list.map(k => {
+        const key = `${k.tipe}|${k.nama}`, on = d.kats.includes(key);
+        return `<button type="button" class="f-check ${on ? 'on' : ''}" data-k="${esc(key)}" role="checkbox" aria-checked="${on}">
+          ${tile(k.ikon, k.warna, 'sm')}<span>${esc(k.nama)}</span><i class="box">${on ? svg('check', 14) : ''}</i></button>`;
+      }).join('')}</div>`;
+    };
+    return `<div class="f-sub"><button type="button" class="f-back" data-act="back">${svg('back', 20)}<span>Category</span></button>
+        ${d.kats.length ? '<button type="button" class="f-clear" data-act="none">Clear</button>' : ''}</div>
+      ${group('keluar', 'Expense')}${group('masuk', 'Income')}`;
+  };
+
   openSheet({
-    title: 'Filter',
-    body: `<div id="fbody">${body()}</div>`,
+    title: 'Filters',
+    body: '<div id="fbody"></div>',
+    footer: `<div class="f-foot"><button type="button" class="f-reset" data-act="reset">Reset</button><button type="button" class="btn primary" data-act="apply"></button></div>`,
     onMount(el, close) {
-      const redraw = () => { el.querySelector('#fbody').innerHTML = body(); bind(); };
+      const bodyEl = el.querySelector('#fbody');
+      const apply = el.querySelector('[data-act="apply"]');
+      const scroller = el.querySelector('.sheet-b');
+      const redraw = (keepScroll = true) => {
+        const y = scroller.scrollTop;
+        bodyEl.innerHTML = view === 'main' ? mainView() : catsView();
+        scroller.scrollTop = keepScroll ? y : 0;
+        apply.textContent = view === 'main' ? resultLabel() : 'Done';
+        apply.disabled = view === 'main' && !filtered(d).length;
+        el.querySelector('[data-act="reset"]').hidden = view !== 'main' || !activeCount(d);
+        bind();
+      };
       const bind = () => {
-        el.querySelectorAll('[data-p]').forEach(b => { b.onclick = () => {
+        bodyEl.querySelectorAll('[data-p]').forEach(b => { b.onclick = () => {
           d.period = b.dataset.p;
           if (d.period === 'custom' && !d.from && !d.to) { d.from = `${ym(todayISO())}-01`; d.to = todayISO(); }
           redraw();
         }; });
-        el.querySelectorAll('[data-d]').forEach(i => { i.onchange = () => { d[i.dataset.d] = i.value; redraw(); }; });
-        el.querySelectorAll('[data-t]').forEach(b => { b.onclick = () => {
+        bodyEl.querySelectorAll('[data-d]').forEach(i => { i.onchange = () => { d[i.dataset.d] = i.value; redraw(); }; });
+        bodyEl.querySelectorAll('[data-t]').forEach(b => { b.onclick = () => {
           d.tipe = b.dataset.t;
           if (d.tipe !== 'all') d.kats = d.tipe === 'transfer' ? [] : d.kats.filter(k => k.startsWith(`${d.tipe}|`));
           redraw();
         }; });
-        el.querySelectorAll('[data-a]').forEach(b => { b.onclick = () => { d.akun = b.dataset.a; redraw(); }; });
-        el.querySelectorAll('[data-k]').forEach(b => { b.onclick = () => {
+        bodyEl.querySelectorAll('[data-a]').forEach(b => { b.onclick = () => { d.akun = b.dataset.a; redraw(); }; });
+        const cats = bodyEl.querySelector('[data-act="cats"]');
+        if (cats) cats.onclick = () => { view = 'cats'; redraw(false); };
+        const back = bodyEl.querySelector('[data-act="back"]');
+        if (back) back.onclick = () => { view = 'main'; redraw(false); };
+        const none = bodyEl.querySelector('[data-act="none"]');
+        if (none) none.onclick = () => { d.kats = []; redraw(); };
+        bodyEl.querySelectorAll('[data-k]').forEach(b => { b.onclick = () => {
           const k = b.dataset.k;
           d.kats = d.kats.includes(k) ? d.kats.filter(x => x !== k) : [...d.kats, k];
           redraw();
         }; });
-        el.querySelector('[data-act="reset"]').onclick = () => { Object.assign(d, fresh()); redraw(); };
-        el.querySelector('[data-act="apply"]').onclick = () => { F = d; months = 1; close(); onApply(); };
+        // pilihan yang aktif terlihat di baris yang bisa digeser
+        bodyEl.querySelectorAll('.f-row .chip.on').forEach(c => { const r = c.parentElement; if (c.offsetLeft + c.offsetWidth > r.clientWidth) r.scrollLeft = c.offsetLeft - 16; });
       };
-      bind();
+      el.querySelector('[data-act="reset"]').onclick = () => { Object.assign(d, fresh()); redraw(); };
+      apply.onclick = () => {
+        if (view === 'cats') { view = 'main'; redraw(false); return; }
+        F = d; months = 1; close(); onApply();
+      };
+      redraw(false);
     },
   });
 }
