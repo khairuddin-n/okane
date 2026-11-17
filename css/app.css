@@ -764,3 +764,24 @@ body, .row .ttl, .row .amt, .li .ttl, .btn, .cat-row .hd .mid, .tgt-h .ttl, .min
 .hero .hstats { gap: 6px; }
 .hero .hstats > div { padding: 9px 10px; }
 .hero .hstats b { font-size: var(--fs-14); letter-spacing: -.02em; overflow: visible; text-overflow: clip; }
+
+/* ---------- v2.3: History — cari + filter ---------- */
+.rw-bar { display: flex; gap: 8px; align-items: center; }
+.rw-bar .search { flex: 1; }
+.f-btn { position: relative; width: 48px; height: 48px; border-radius: 12px; background: var(--chip-bg); color: var(--text); }
+.f-btn.on { background: var(--primary); color: var(--on-primary); }
+.f-btn i { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--expense); color: #fff; font: 700 var(--fs-11)/18px var(--sans); font-style: normal; box-shadow: 0 0 0 2px var(--bg); }
+.f-active { padding: 10px 16px 0; }
+.f-active .chip { min-height: 34px; padding: 5px 12px; font-size: var(--fs-13); }
+.f-active .chip.on .ic { margin-left: 2px; opacity: .85; }
+.day-h { display: flex; justify-content: space-between; margin: 18px 20px 6px; font-size: var(--fs-13); font-weight: 600; color: var(--muted); }
+.day-c { margin: 0 16px; padding: 2px 16px; }
+.f-sheet .chips { gap: 6px; }
+.f-sheet .chip { min-height: 36px; padding: 6px 12px; font-size: var(--fs-14); }
+.f-sheet .chip .tile.xs { width: 22px; height: 22px; border-radius: 7px; margin-left: -4px; }
+.f-sheet .chip.on .tile.xs { background: rgba(255,255,255,.2); color: inherit; }
+.sub-l { font-size: var(--fs-12); font-weight: 600; color: var(--muted); margin: 8px 0 6px; }
+.f-foot { position: sticky; bottom: 0; padding: 12px 0 calc(4px + env(safe-area-inset-bottom)); background: var(--surface); }
+/* waktu di bawah nominal */
+.row .amt small { margin-top: 2px; font-weight: 500; font-size: var(--fs-12); color: var(--muted); }
+.f-foot { box-shadow: 0 40px 0 0 var(--surface), 0 -10px 14px -12px rgba(0,0,0,.25); z-index: 1; }

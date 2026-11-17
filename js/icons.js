@@ -86,6 +86,8 @@ export const UI_ICONS = {
   share: 'M12 15V3M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7',
   flag: 'M5 21V4M5 4h11l-2 4 2 4H5',
   receipt: CATEGORY_ICONS.tagihan,
+  grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+  chevronUpSm: 'M6 15l6-6 6 6',
 };
 
 export const ICON_KEYS = Object.keys(CATEGORY_ICONS).filter(k => k !== 'transfer');

@@ -17,6 +17,9 @@ export function daysInMonth(month) {
   return new Date(y, m, 0).getDate();
 }
 
+// Tanggal terakhir sebuah bulan 'YYYY-MM' → 'YYYY-MM-DD'
+export const monthEnd = month => `${month}-${pad(daysInMonth(month))}`;
+
 export function addMonths(month, k) {
   const [y, m] = month.split('-').map(Number);
   const d = new Date(y, m - 1 + k, 1);

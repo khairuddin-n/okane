@@ -77,7 +77,7 @@ function catsHTML() {
   const btn = k => `<button type="button" class="cat ${k.nama === f.sel.kategori ? 'on' : ''}" data-cat="${esc(k.nama)}" aria-pressed="${k.nama === f.sel.kategori}">
     ${tile(k.ikon, k.warna, 'sm')}<span>${esc(k.nama)}</span></button>`;
   const toggle = all.length > SHORT + 1 ? `<button type="button" class="cat more" data-act="cats-more" aria-expanded="${showAllCats}">
-    <span class="tile sm">${svg(showAllCats ? 'arrowUp' : 'lainnya', 16)}</span><span>${showAllCats ? 'Less' : `All ${all.length}`}</span></button>` : '';
+    <span class="tile sm">${svg(showAllCats ? 'chevronUpSm' : 'grid', 16)}</span><span>${showAllCats ? 'Less' : `All ${all.length}`}</span></button>` : '';
   return list.map(btn).join('') + toggle;
 }
 

@@ -41,7 +41,7 @@ export function catStyle(tipe, nama) {
 }
 
 export function tile(ikon, warna, size = '') {
-  const px = size === 'sm' ? 16 : size === 'lg' ? 24 : 20;
+  const px = size === 'xs' ? 13 : size === 'sm' ? 16 : size === 'lg' ? 24 : 20;
   return `<span class="tile ${size} c-${esc(warna)}">${svg(ikon, px)}</span>`;
 }
 export const catTile = (tipe, nama, size) => { const s = catStyle(tipe, nama); return tile(s.ikon, s.warna, size); };
@@ -66,21 +66,20 @@ export function txAmount(t) {
 const shortDay = iso => { const d = diffDays(iso, todayISO()); return d === 0 ? 'Today' : d === 1 ? 'Yesterday' : fmtDayMonth(iso); };
 
 export function txRow(t, { when = 'time' } = {}) {
-  // Baris kedua = kapan (seperti aplikasi bank/dompet). Kategori & rekening tidak ditulis ulang: ikon sudah menunjukkan kategori.
+  // Kanan: nominal + waktu kecil di bawahnya. Kiri: judul, baris kedua hanya untuk info tambahan
+  // (kategori & rekening tidak ditulis ulang; ikon sudah menunjukkan kategori).
   const note = String(t.catatan || '').trim();
   const auto = t.sumber === 'otomatis';
   const time = auto ? '' : String(t.jam || '');
+  const whenText = auto ? (when === 'date' ? `${shortDay(t.tanggal)} · Auto` : 'Auto') : (when === 'date' ? (time ? `${shortDay(t.tanggal)}, ${time}` : shortDay(t.tanggal)) : time);
   const parts = [];
-  if (when === 'date') parts.push(time ? `${shortDay(t.tanggal)}, ${time}` : shortDay(t.tanggal));
-  else if (time) parts.push(time);
-  if (auto) parts.push('Auto');
   if (t.tipe === 'transfer' && note) parts.push(`${accName(t.akun)} → ${accName(t.akun_tujuan)}`);
+  if (t.tipe === 'transfer' && Number(t.biaya_admin) > 0) parts.push(`Fee ${rupiah(t.biaya_admin)}`);
   if (t.tipe === 'keluar' && state.piutang.some(p => p.transaksi_id === t.id && !p.dihapus)) parts.push('Split');
-  const fee = t.tipe === 'transfer' && Number(t.biaya_admin) > 0 ? `<small>fee ${rupiah(t.biaya_admin)}</small>` : '';
   return `<button class="row" data-tx="${esc(t.id)}">
     ${catTile(t.tipe, t.kategori)}
     <span class="mid"><span class="ttl">${esc(txTitle(t))}</span>${parts.length ? `<span class="meta">${esc(parts.join(' · '))}</span>` : ''}</span>
-    <span class="amt num">${txAmount(t)}${fee}</span>
+    <span class="amt num">${txAmount(t)}${whenText ? `<small>${esc(whenText)}</small>` : ''}</span>
   </button>`;
 }
 
