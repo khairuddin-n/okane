@@ -702,7 +702,8 @@ export function categoryMovers(transaksi, month, today) {
   const a = sum(month), b = sum(prevM);
   return [...new Set([...Object.keys(a), ...Object.keys(b)])]
     .map(k => ({ kategori: k, cur: a[k] || 0, prev: b[k] || 0, diff: (a[k] || 0) - (b[k] || 0) }))
-    .filter(x => x.prev > 0 && x.diff !== 0)
+    // kategori yang belum dipakai bulan ini tidak dibandingkan ("turun 100%" tidak berguna)
+    .filter(x => x.prev > 0 && x.cur > 0 && x.diff !== 0)
     .sort((x, y) => Math.abs(y.diff) - Math.abs(x.diff));
 }
 

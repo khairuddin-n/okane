@@ -465,6 +465,10 @@ describe('analitik v2', () => {
     const mv = M.categoryMovers(list, '2026-11', '2026-11-10');
     assert.deepEqual(mv, [{ kategori: 'Food', cur: 100_000, prev: 50_000, diff: 50_000 }]);
   });
+  test('kategori yang belum dipakai bulan ini tidak muncul sebagai "turun 100%"', () => {
+    const l2 = [...list, tx({ tipe: 'keluar', kategori: 'Travel', nominal: 850_000, tanggal: '2026-10-05' })];
+    assert.ok(!M.categoryMovers(l2, '2026-11', '2026-11-10').some(x => x.kategori === 'Travel'));
+  });
   test('saldo di bawah minimum', () => {
     assert.deepEqual(M.lowBalances(rek, list).map(r => [r.id, r.saldo]), [['a', 627_500]]);
   });
