@@ -1,7 +1,7 @@
 import { svg, CATEGORY_ICONS, ICON_KEYS } from '../icons.js';
 import { esc, initials, fmtDayMonth } from '../format.js';
 import { getPref, setPref } from '../theme.js';
-import { tile, syncLabel, openSheet, toast, confirmSheet } from '../ui.js';
+import { tile, syncLabel, openSheet, toast, confirmSheet, openPrivacy } from '../ui.js';
 import { state, setPrivacy, saveCategory } from '../store.js';
 import { COLOR_CHOICES } from '../schema.js';
 import { num } from '../model.js';
@@ -61,7 +61,7 @@ function mainView() {
       <button class="li" data-act="csv">${svg('download')}<span class="mid"><span class="ttl">Export CSV</span></span></button>
     </div>
 
-    <p class="privacy-note">${svg('lock', 14)}<span>${isGoogle ? 'Your data lives only in your own Google Drive.' : 'Your data lives only on this device.'} okane has no server, so the developer can’t see it. <a href="./privacy.html" target="_blank" rel="noopener">Privacy</a></span></p>
+    <p class="privacy-note">${svg('lock', 14)}<span>${isGoogle ? 'Your data lives only in your own Google Drive.' : 'Your data lives only on this device.'} okane has no server, so the developer can’t see it. <button type="button" class="link-btn" data-act="privacy">Learn more</button></span></p>
     <div class="pad" style="margin-top:18px"><button class="btn big" data-act="logout" style="color:var(--expense)">${svg('logout', 18)} Sign out</button></div>
     <div class="version">okane v${esc(APP_VERSION)}</div>`;
 }
@@ -157,6 +157,7 @@ export default {
       if (e.target.checked) setPrivacy(true);
     };
     root.querySelector('[data-act="csv"]').onclick = exportCSV;
+    root.querySelector('[data-act="privacy"]').onclick = openPrivacy;
     root.querySelector('[data-act="bc"]').onchange = e => setBalanceCheckEnabled(e.target.checked);
     const refresh = async () => { await loadSec(); ctx.rerender(); };
     root.querySelector('[data-act="lock"]').onchange = async e => {

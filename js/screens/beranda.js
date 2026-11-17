@@ -40,7 +40,7 @@ function upcomingHTML(state, today) {
     <div class="card-h"><h2>Upcoming</h2><a class="link" href="#/rekening?tab=tagihan">Bills ${svg('chevronRight', 16)}</a></div>
     <div class="rows">${list.map(u => `<a class="row" href="${href(u)}">
       <span class="bill-date ${u.lewat || diffDays(today, u.tanggal) <= 1 ? 'soon' : ''}"><b>${dayOf(u.tanggal)}</b><small>${monthShort(u.tanggal)}</small></span>
-      <span class="mid"><span class="ttl">${esc(u.nama)}</span><span class="meta">${when(u)}${u.jenis === 'tagihan' ? '' : ' · auto'}</span></span>
+      <span class="mid"><span class="ttl">${esc(u.nama)}</span><span class="meta">${when(u)}</span></span>
       <span class="amt num ${u.tipe === 'masuk' ? 't-income' : ''}">${rupiah(u.tipe === 'masuk' ? u.nominal : -u.nominal, { sign: u.tipe === 'masuk' })}</span></a>`).join('')}</div></section>`;
 }
 
@@ -105,7 +105,7 @@ export default {
       </div>
 
       ${ins.length ? `<div class="sec-h"><h2>For you</h2></div>
-      <div class="hscroll ins-scroll">${ins.slice(0, 6).map(i => `<a class="insc ${i.tone}" href="${i.href}">
+      <div class="hscroll ins-scroll">${ins.slice(0, 3).map(i => `<a class="insc ${i.tone}" href="${i.href}">
         ${tile(i.ikon, i.warna, 'sm')}<span class="l">${esc(i.label)}</span><b class="num">${esc(i.value)}</b><small>${esc(i.sub || '')}</small></a>`).join('')}</div>` : ''}
 
       <div class="pad stack" style="margin-top:18px">

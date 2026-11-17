@@ -703,3 +703,9 @@ a.row { color: var(--text); }
 .onb .hero .wordmark { color: var(--on-header); }
 .onb .hero h1 { font-weight: 700; color: var(--on-header); }
 .onb .hero p { color: var(--on-header-muted); }
+.link-btn { display: inline; padding: 0; min-height: 0; font: inherit; font-weight: 600; color: var(--primary-text); text-decoration: underline; text-underline-offset: 2px; }
+.priv-list { margin: 0 0 8px; padding-left: 18px; display: grid; gap: 10px; font-size: 14.5px; line-height: 1.5; }
+.priv-list a { color: var(--primary-text); font-weight: 600; }
+.row .mid:only-child, .row .mid { justify-content: center; }
+.cat-top { justify-content: center; }
+.cat-row .ft { justify-content: flex-end; }

@@ -1,6 +1,6 @@
 import { svg, GOOGLE_G } from '../icons.js';
 import { esc, rupiah } from '../format.js';
-import { JENIS, moneyInput, bindMoney, toast } from '../ui.js';
+import { JENIS, moneyInput, bindMoney, toast, openPrivacy } from '../ui.js';
 import { state, saveAccount, startLocal } from '../store.js';
 import { activeAccounts, balances } from '../model.js';
 
@@ -29,7 +29,7 @@ function welcome(canGoogle, canLocal) {
       ${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}
       ${canGoogle ? `<button class="btn google" data-act="google">${GOOGLE_G}<span>Sign in with Google</span></button>` : ''}
       ${canLocal ? `<button class="btn ${canGoogle ? 'ghost' : 'primary'} big" data-act="local">Try without an account (local mode)</button>` : ''}
-      <p class="privacy-note onb-note">${svg('lock', 14)}<span>Your data is saved only to a spreadsheet in your own Google Drive. okane has no server, so the developer can never see it. <a href="./privacy.html" target="_blank" rel="noopener">Privacy</a></span></p>
+      <p class="privacy-note onb-note">${svg('lock', 14)}<span>Your data is saved only to a spreadsheet in your own Google Drive. okane has no server, so the developer can never see it. <button type="button" class="link-btn" data-act="privacy">Learn more</button></span></p>
     </div></div>`;
 }
 
@@ -68,6 +68,8 @@ export default {
   bind(root, ctx) {
     const g = root.querySelector('[data-act="google"]');
     if (g) g.onclick = () => ctx.loginGoogle?.();
+    const pv = root.querySelector('[data-act="privacy"]');
+    if (pv) pv.onclick = openPrivacy;
     const l = root.querySelector('[data-act="local"]');
     if (l) l.onclick = async () => { await startLocal(); step = 'accounts'; ctx.rerender(); };
     const form = root.querySelector('#accf');

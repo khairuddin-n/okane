@@ -3,16 +3,11 @@ import { svg } from '../icons.js';
 import { esc, rupiah } from '../format.js';
 import { todayISO, dayOf } from '../dates.js';
 import { activeAccounts, scheduleLabel, parseSchedule, num, OTHER_CATEGORY } from '../model.js';
-import { catTile, openSheet, toast, moneyInput, bindMoney, confirmSheet, accName } from '../ui.js';
+import { catTile, openSheet, toast, moneyInput, bindMoney, confirmSheet } from '../ui.js';
 import { state, saveRule, runAutomations } from '../store.js';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const TIPE = [['keluar', 'Expense'], ['masuk', 'Income'], ['transfer', 'Transfer']];
-
-function where(r) {
-  if (r.tipe === 'transfer') return `${accName(r.akun)} → ${accName(r.akun_tujuan)}`;
-  return r.tipe === 'masuk' ? `into ${accName(r.akun)}` : `from ${accName(r.akun)}`;
-}
 
 function openRule(id) {
   const existing = state.berulang.find(x => x.id === id);
@@ -101,7 +96,7 @@ export default {
       <p class="muted pad" style="font-size:13px;margin:2px 4px 12px">Logged automatically on schedule. Bills wait until you tap Pay.</p>
       ${list.length ? `<div class="list">${list.map(r => `<div class="li">
         <button class="rule" data-rule="${esc(r.id)}" aria-label="Edit ${esc(r.nama)}">${catTile(r.tipe, r.kategori)}
-          <span class="mid"><span class="ttl">${esc(r.nama)}</span><span class="meta">${esc(scheduleLabel(r.jadwal))} · ${esc(where(r))}</span></span>
+          <span class="mid"><span class="ttl">${esc(r.nama)}</span><span class="meta">${esc(scheduleLabel(r.jadwal))}</span></span>
           <b class="num ${r.tipe === 'masuk' ? 't-income' : r.tipe === 'keluar' ? 't-expense' : 't-transfer'}">${rupiah(r.tipe === 'keluar' ? -num(r.nominal) : num(r.nominal), { sign: r.tipe === 'masuk' })}</b></button>
         <span class="switch"><input type="checkbox" data-on="${esc(r.id)}" ${r.aktif !== false ? 'checked' : ''} aria-label="Enable ${esc(r.nama)}"><i></i></span></div>`).join('')}</div>`
       : '<p class="empty">Nothing yet. Tap + or use Repeat when adding a transaction.</p>'}`;

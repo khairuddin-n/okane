@@ -51,7 +51,7 @@ function flowChart(m) {
         <text class="lbl" x="${(i + 0.5) * bw}" y="${H - 8}" text-anchor="middle" style="${on ? 'font-weight:700;fill:var(--text)' : ''}">${monthShort(d.month)}</text>`;
     }).join('')}</svg>
     <div class="chart-foot"><span>Left in ${monthShort(m)}${cur.masuk > 0 ? ` · ${pct(sisa / cur.masuk)} of income` : ''}</span><b class="num ${sisa >= 0 ? 't-income' : 't-expense'}">${rupiah(sisa, { sign: true })}</b></div>
-    <div class="legend"><span><i style="background:var(--income)"></i>In<b class="num">${rupiah(cur.masuk)}</b></span><span><i style="background:var(--warn)"></i>Out<b class="num">${rupiah(cur.keluar)}</b></span></div>`;
+    <div class="legend"><span><i style="background:var(--income)"></i>In</span><span><i style="background:var(--warn)"></i>Out</span></div>`;
 }
 
 function catCard(m) {
@@ -59,14 +59,14 @@ function catCard(m) {
   const spentRows = rows.filter(r => r.spent > 0);
   const total = spentRows.reduce((t, r) => t + r.spent, 0);
   const ring = spentRows.length ? `<div class="cat-top">${donut(spentRows.map(r => ({ value: r.spent, color: `var(--c-${catStyle('keluar', r.kategori).warna}-i)` })), { center: `<small>${spentRows.length} ${spentRows.length === 1 ? 'category' : 'categories'}</small><b class="num">${esc(compact(total))}</b>` })}
-    <div class="cat-leg">${spentRows.slice(0, 4).map(r => `<div><i style="background:var(--c-${esc(catStyle('keluar', r.kategori).warna)}-i)"></i><span>${esc(r.kategori)}</span><b class="num">${pct(r.share)}</b></div>`).join('')}</div></div>` : '';
+</div>` : '';
   const list = rows.map(r => {
     let ft = '', bar = '';
     if (r.batas > 0) {
       const cls = r.pct > 1 ? 'over' : r.pct >= 0.9 ? 'warn' : '';
       const rest = r.batas - r.spent;
       bar = `<div class="bar thin ${cls}"><i style="width:${Math.min(100, r.pct * 100)}%"></i></div>`;
-      ft = `<div class="ft"><span>of ${rupiah(r.batas)}</span><span class="${cls || 'ok'}">${rest >= 0 ? `${rupiah(rest)} left` : `${rupiah(-rest)} over`}</span></div>`;
+      ft = `<div class="ft"><span class="${cls || 'ok'}">${rest >= 0 ? `${rupiah(rest)} left` : `${rupiah(-rest)} over`}</span></div>`;
     }
     return `<a class="cat-row" href="#/riwayat?kat=${encodeURIComponent(r.kategori)}&bulan=${m}"><div class="hd">${catTile('keluar', r.kategori)}
       <span class="mid">${esc(r.kategori)} <small>· ${pct(r.share)}</small></span><b class="num">${rupiah(r.spent)}</b></div>

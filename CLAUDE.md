@@ -611,5 +611,6 @@ Pengguna meminta perombakan total di luar roadmap §13. Yang berlaku sekarang:
 - **Migrasi kategori** (`js/migrate.js`, fungsi murni + test): kategori bawaan lama diganti nama, lama diarsipkan; "Tagihan"/"Lainnya" ditebak ulang dari catatan (Kos → Rent, gym → Fitness). Sekali per data lewat `meta.category_version = 2`. Google: jalan setelah pull di `sync.syncAll`; lokal: saat boot.
 - **Layar Catat**: grid kategori ringkas (7 paling sering 90 hari + terpilih + tombol "All n").
 - **Kerapian**: judul baris boleh 2 baris (tidak dipotong), meta baris tanpa jam, meta tagihan hanya jatuh tempo, ringkasan Riwayat satu kartu.
-- **Catatan privasi**: satu baris di bawah tombol login (onboarding) dan di atas tombol Sign out (Settings), link ke privacy.html.
+- **Catatan privasi**: satu baris di bawah tombol login (onboarding) dan di atas tombol Sign out (Settings); "Learn more" membuka bottom sheet `ui.openPrivacy()` (JANGAN link ke halaman lain: di PWA itu me-reload app dan token Google di memori hilang).
+- **v2.1.1 – baris transaksi minimal**: ikon + catatan + nominal. Kategori & rekening tidak ditulis ulang (ikon sudah menunjukkan kategori); baris kedua hanya untuk info tambahan (rute transfer bila ada catatan, Split, tanggal). Tanpa tag "auto". Laporan: tanpa legenda donut, budget cukup "Rp… left". Beranda: maks 3 kartu For you.
 - **Belum**: impor e-statement (sedang didiskusikan), README masih Indonesia.

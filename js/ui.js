@@ -62,19 +62,18 @@ export function txAmount(t) {
 }
 
 export function txRow(t, { showDate = false } = {}) {
-  let meta;
-  if (t.tipe === 'transfer') meta = `${esc(accName(t.akun))} → ${esc(accName(t.akun_tujuan))}`;
-  else if (t.tipe === 'penyesuaian') meta = `Adjustment · ${esc(accName(t.akun))}`;
-  else if (t.tipe === 'pelunasan') meta = `Repayment · ${esc(accName(t.akun))}`;
-  else meta = `${esc(t.kategori)} · ${esc(accName(t.akun))}`;
-  if (showDate) meta += ` · ${esc(t.tanggal.slice(8, 10) + '/' + t.tanggal.slice(5, 7))}`;
-  const auto = (t.sumber === 'otomatis' ? '<span class="auto-tag">auto</span>' : '')
-    + (t.tipe === 'keluar' && state.piutang.some(p => p.transaksi_id === t.id && !p.dihapus) ? '<span class="auto-tag">split</span>' : '');
-  const admin = t.tipe === 'transfer' && Number(t.biaya_admin) > 0 ? `<small>admin ${rupiah(t.biaya_admin)}</small>` : '';
+  // Baris kedua hanya kalau menambah informasi (rekening & kategori tidak ditulis; ada di ikon, detail, dan filter).
+  const note = String(t.catatan || '').trim();
+  const parts = [];
+  // kategori tidak ditulis ulang: ikonnya sudah menunjukkan kategori
+  if (t.tipe === 'transfer' && note) parts.push(`${accName(t.akun)} → ${accName(t.akun_tujuan)}`);
+  if (t.tipe === 'keluar' && state.piutang.some(p => p.transaksi_id === t.id && !p.dihapus)) parts.push('Split');
+  if (showDate) parts.push(`${t.tanggal.slice(8, 10)}/${t.tanggal.slice(5, 7)}`);
+  const fee = t.tipe === 'transfer' && Number(t.biaya_admin) > 0 ? `<small>fee ${rupiah(t.biaya_admin)}</small>` : '';
   return `<button class="row" data-tx="${esc(t.id)}">
     ${catTile(t.tipe, t.kategori)}
-    <span class="mid"><span class="ttl">${esc(txTitle(t))}${auto}</span><span class="meta">${meta}</span></span>
-    <span class="amt num">${txAmount(t)}${admin}</span>
+    <span class="mid"><span class="ttl">${esc(txTitle(t))}</span>${parts.length ? `<span class="meta">${esc(parts.join(' · '))}</span>` : ''}</span>
+    <span class="amt num">${txAmount(t)}${fee}</span>
   </button>`;
 }
 
@@ -136,6 +135,20 @@ export function confirmSheet({ title, text, ok = 'Yes', danger = false }) {
       onMount: (el, close) => { el.querySelector('[data-ok]').onclick = () => { done = true; close(); resolve(true); }; },
       onClose: () => { if (!done) resolve(false); },
     });
+  });
+}
+
+// ---------- Privasi: dijelaskan di dalam aplikasi (pindah halaman memutus sesi Google) ----------
+export function openPrivacy() {
+  const local = state.mode === 'local';
+  openSheet({
+    title: 'Your data & privacy',
+    body: `<ul class="priv-list">
+      <li>${local ? 'Your data is stored only on this device.' : 'Your data is stored in a spreadsheet called “okane – Data” in your own Google Drive.'}</li>
+      <li>okane has no server. Nothing is sent to the developer or anyone else. No ads, no analytics.</li>
+      ${local ? '' : '<li>okane can only open files it created, not the rest of your Drive.</li>'}
+      <li>${local ? 'Signing out deletes the data on this device.' : 'You can delete the spreadsheet or revoke access any time in your <a href="https://myaccount.google.com/connections" target="_blank" rel="noopener">Google Account</a>.'}</li>
+    </ul>`,
   });
 }
 
