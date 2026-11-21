@@ -1,23 +1,23 @@
 /* okane — semua warna lewat custom properties (terang & gelap) */
 :root {
   /* kertas hangat + tinta + zamrud + emas koin */
-  --bg: #F4F1EA; --surface: #FFFFFF; --surface-2: #FAF8F3; --text: #131C19; --muted: #636E69;
+  --bg: #F4F1EA; --surface: #FFFFFF; --surface-2: #FAF8F3; --text: #121722; --muted: #616A78;
   --line: #EFECE4; --border: #DDD8CC; --track: #E9E5DB;
-  --primary: #0B5D4E; --primary-press: #08463B; --primary-text: #0B5D4E; --header: #0B5D4E;
-  --hero-a: #073B32; --hero-b: #0B5D4E; --hero-c: #128068; --gold: #E3BE5A; --gold-ink: #8A6A12;
+  --primary: #1F4FB8; --primary-press: #183F94; --primary-text: #1F4FB8; --header: #1F4FB8;
+  --hero-a: #12306F; --hero-b: #1F4FB8; --hero-c: #2F6BD8; --gold: #E3BE5A; --gold-ink: #8A6A12;
   --on-primary: #FFFFFF; --on-header: #FFFFFF; --knob: #FFFFFF; --on-header-soft: rgba(255,255,255,.13); --on-header-muted: rgba(255,255,255,.76);
   --income: #047857; --income-tint: #E0F2EA;
   --expense: #B33A0B; --expense-tint: #FCEEE2;
   --transfer: #3730A3; --transfer-tint: #EEF0FF;
-  --warn: #DB8424; --over: #C2410C; --bar-low: #A9D8C6;
+  --warn: #DB8424; --over: #C2410C; --bar-low: #B7CAF1;
   --acc-bank: #123B33; --acc-bank-2: #1E5C4F; --acc-ewallet: #272F7A; --acc-ewallet-2: #4450B8; --acc-tunai: #6B3F08; --acc-tunai-2: #A66A1C; --acc-text: #FFFFFF;
   --shadow: 0 1px 2px rgba(40,34,18,.05), 0 6px 18px -10px rgba(40,34,18,.16);
-  --shadow-lg: 0 14px 38px -8px rgba(20,28,25,.28);
-  --scrim: rgba(12,18,16,.5);
-  --snack: #18221F; --snack-text: #F1F5F4;
-  --radius: 22px; --sw-light: #F4F1EA; --sw-dark: #0B100E;
+  --shadow-lg: 0 14px 38px -8px rgba(18,24,38,.28);
+  --scrim: rgba(12,16,26,.5);
+  --snack: #171C27; --snack-text: #F1F3F8;
+  --radius: 22px; --sw-light: #F4F1EA; --sw-dark: #0B0E15;
   --nav-h: 66px;
-  --chip-bg: #EAE6DC; --nav-off: #717C77; --nav-pill: #D8EBE3; --card-line: rgba(40,34,18,.06); --sel-ring: #0B5D4E;
+  --chip-bg: #EAE6DC; --nav-off: #6F7787; --nav-pill: #DCE5F9; --card-line: rgba(40,34,18,.06); --sel-ring: #1F4FB8;
   --nav-glass: rgba(255,255,255,.86);
   --stat-in: #7CE3B5; --stat-out: #FFB48A;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -32,27 +32,27 @@
   --c-ungu-t: #F2E7FE;   --c-ungu-i: #7E22CE;
   --c-violet-t: #EBE7FE; --c-violet-i: #5B21B6;
   --c-pink-t: #FFE3E8;   --c-pink-i: #BE123C;
-  --c-abu-t: #EEEBE3;    --c-abu-i: #4A5550;
+  --c-abu-t: #EEEBE3;    --c-abu-i: #4A5262;
   --c-indigo-t: #ECEFFF; --c-indigo-i: #3730A3;
   color-scheme: light;
 }
 [data-theme="dark"] {
-  --bg: #0A0F0D; --surface: #131A17; --surface-2: #182019; --text: #E8EFEC; --muted: #93A29C;
-  --line: #1F2925; --border: #2A3631; --track: #232D29;
-  --primary: #34B594; --primary-press: #2A9A7D; --primary-text: #7FE0BF; --header: #0D4037;
-  --hero-a: #06231E; --hero-b: #0B3F35; --hero-c: #116B58; --gold: #E9C96A; --gold-ink: #E9C96A;
-  --on-primary: #04130F;
+  --bg: #0A0D14; --surface: #131824; --surface-2: #181E2B; --text: #E8ECF4; --muted: #97A0B2;
+  --line: #1F2533; --border: #2A3244; --track: #232A39;
+  --primary: #5B8CF0; --primary-press: #4473D9; --primary-text: #9DBCFF; --header: #163A80;
+  --hero-a: #0A1A3D; --hero-b: #143270; --hero-c: #1E4FB0; --gold: #E9C96A; --gold-ink: #E9C96A;
+  --on-primary: #050C1C;
   --income: #4ADE9F; --income-tint: #12302A;
   --expense: #FF9A6B; --expense-tint: #38211A;
   --transfer: #A5B4FC; --transfer-tint: #1B2440;
-  --warn: #F4A55A; --over: #FF7A45; --bar-low: #2B5749;
+  --warn: #F4A55A; --over: #FF7A45; --bar-low: #2A4373;
   --acc-bank: #0F3029; --acc-bank-2: #1B5245; --acc-ewallet: #1E2563; --acc-ewallet-2: #3640A0; --acc-tunai: #53310A; --acc-tunai-2: #8A5717;
   --shadow: 0 0 0 1px rgba(255,255,255,.03);
   --shadow-lg: 0 14px 38px -8px rgba(0,0,0,.6);
-  --chip-bg: #1B2521; --nav-off: #86958F; --nav-pill: #173A31; --card-line: rgba(255,255,255,.05); --sel-ring: #7FE0BF;
-  --nav-glass: rgba(19,26,23,.84);
+  --chip-bg: #1B2130; --nav-off: #8A93A6; --nav-pill: #1A2D57; --card-line: rgba(255,255,255,.05); --sel-ring: #9DBCFF;
+  --nav-glass: rgba(19,24,36,.84);
   --scrim: rgba(0,0,0,.62);
-  --snack: #E8EFEC; --snack-text: #10201C;
+  --snack: #E8ECF4; --snack-text: #101626;
   --c-oranye-t: #38211A; --c-oranye-i: #FF9A6B;
   --c-biru-t: #1A2540;   --c-biru-i: #8DB7FF;
   --c-langit-t: #14293A; --c-langit-i: #7CCBF7;
@@ -62,7 +62,7 @@
   --c-ungu-t: #2A1D3D;   --c-ungu-i: #D0A6FF;
   --c-violet-t: #241F42; --c-violet-i: #B9AEFF;
   --c-pink-t: #381A23;   --c-pink-i: #FDA4AF;
-  --c-abu-t: #212B27;    --c-abu-i: #B8C4C0;
+  --c-abu-t: #212736;    --c-abu-i: #B8C0CE;
   --c-indigo-t: #1B2440; --c-indigo-i: #A5B4FC;
   color-scheme: dark;
 }

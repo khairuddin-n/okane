@@ -12,7 +12,7 @@ export function apply() {
   const p = getPref();
   const dark = p === 'dark' || (p === 'system' && mq.matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0E1513' : '#0B5D4E');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0A0D14' : '#1F4FB8');
   for (const fn of listeners) fn();
 }
 

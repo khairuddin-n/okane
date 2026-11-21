@@ -27,7 +27,7 @@ async function drawCard(r) {
   c.width = W; c.height = H;
   const x = c.getContext('2d');
   const rr = (X, Y, w, h, rad) => { x.beginPath(); x.roundRect ? x.roundRect(X, Y, w, h, rad) : x.rect(X, Y, w, h); };
-  x.fillStyle = '#0B5D4E'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#1F4FB8'; x.fillRect(0, 0, W, H);
   x.strokeStyle = 'rgba(255,255,255,.10)'; x.lineWidth = 90; x.beginPath(); x.arc(W - 40, 60, 300, 0, Math.PI * 2); x.stroke();
   x.textBaseline = 'alphabetic';
   x.fillStyle = '#FFFFFF';
