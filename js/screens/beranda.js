@@ -15,7 +15,7 @@ function todayCard(tx, today, tb) {
   if (!(tb > 0)) {
     const avg = spentInMonth(tx, m) / dayOf(today);
     return `<a class="card today" href="#/laporan">
-      <span class="tile lg c-hijau">${svg('chart', 24)}</span>
+      <span class="tile lg c-biru">${svg('chart', 24)}</span>
       <div class="today-t"><span>Spent today</span><b class="num">${rupiah(spentToday)}</b><small class="num">Avg ${rupiah(avg)}/day</small></div></a>`;
   }
   const before = spentInMonth(tx, m) - spentToday;
