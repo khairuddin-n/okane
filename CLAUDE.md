@@ -377,9 +377,9 @@ Tulis test dengan `node --test` untuk semua fungsi di atas. Wajib mencakup kasus
   - `start_url: "./#/beranda"`, `scope: "./"`, `display: "standalone"`;
   - `background_color: "#F3F6F5"`, `theme_color: "#0B5D4E"`;
   - ikon 192, 512, dan maskable 512.
-- **Logo okane**: koin berlubang ala Jepang berwarna putih di atas `#0B5D4E`. Simpan sebagai `icons/logo.svg`:
+- **Logo okane**: koin berlubang ala Jepang berwarna putih di atas biru `#1F4FB8` (sejak v2.3.3; warna ikon membedakan aplikasi milik pengguna: Emas kuning, Hutang Lu hijau, okane biru). Warna tema di dalam aplikasi tetap `#0B5D4E`. Simpan sebagai `icons/logo.svg`:
   ```svg
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#0B5D4E"/><path d="M23 50a27 27 0 1 0 54 0a27 27 0 1 0-54 0zM41 50a9 9 0 1 0 18 0a9 9 0 1 0-18 0z" fill="#FFFFFF" fill-rule="evenodd"/><circle cx="50" cy="50" r="18.5" fill="none" stroke="#0B5D4E" stroke-opacity="0.3" stroke-width="2"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#1F4FB8"/><path d="M23 50a27 27 0 1 0 54 0a27 27 0 1 0-54 0zM41 50a9 9 0 1 0 18 0a9 9 0 1 0-18 0z" fill="#FFFFFF" fill-rule="evenodd"/><circle cx="50" cy="50" r="18.5" fill="none" stroke="#1F4FB8" stroke-opacity="0.3" stroke-width="2"/></svg>
   ```
   - Ikon PWA 192 dan 512 dibuat dari SVG ini. `apple-touch-icon.png` (180px) memakai versi **tanpa sudut membulat** (`rx="0"`), karena iOS membulatkan sendiri.
   - Ikon **maskable** 512 dibuat tanpa sudut membulat, dengan koin diperkecil sekitar 80% supaya aman di safe zone.
@@ -618,3 +618,4 @@ Pengguna meminta perombakan total di luar roadmap §13. Yang berlaku sekarang:
 - **v2.3.0**: Riwayat = cari + tombol filter (bottom sheet: Date [All time/This month/Last month/Last 3 months/This year/Custom], Type, Account, Categories multi-pilih per tipe). Filter aktif tampil sebagai chip yang bisa dihapus; ringkasan In/Out/Net mengikuti filter. Deep link `?akun=` dan `?kat=&bulan=` tetap jalan. Waktu transaksi pindah ke kanan di bawah nominal (`.row .amt small`); kiri hanya judul + info tambahan (rute transfer, Fee, Split). Tombol "All n" di grid kategori memakai ikon `grid` (beda dari kategori Other).
 - **v2.3.1**: sheet Filters dirombak: tiap bagian satu baris (Date & Account = chip geser satu baris, Type = segmen), Category = baris ringkasan → halaman checklist di dalam sheet (ikon + nama + kotak centang, tombol Clear, "Done"). `openSheet({ footer })` membuat footer tetap di luar area gulir (`.sheet.has-foot`); footer filter: "Reset" (hanya bila ada filter) + "Show n results". Sheet tidak lagi memfokuskan tombol tutup.
 - **v2.3.2**: insight "naik/turun" hanya membandingkan kategori yang dipakai di kedua bulan (tidak ada lagi "Travel down 100%").
+- **v2.3.3**: ikon aplikasi (logo, PWA 192/512, maskable, apple-touch, favicon) berganti biru `#1F4FB8`; warna di dalam aplikasi tidak berubah.
