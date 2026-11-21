@@ -619,3 +619,4 @@ Pengguna meminta perombakan total di luar roadmap §13. Yang berlaku sekarang:
 - **v2.3.1**: sheet Filters dirombak: tiap bagian satu baris (Date & Account = chip geser satu baris, Type = segmen), Category = baris ringkasan → halaman checklist di dalam sheet (ikon + nama + kotak centang, tombol Clear, "Done"). `openSheet({ footer })` membuat footer tetap di luar area gulir (`.sheet.has-foot`); footer filter: "Reset" (hanya bila ada filter) + "Show n results". Sheet tidak lagi memfokuskan tombol tutup.
 - **v2.3.2**: insight "naik/turun" hanya membandingkan kategori yang dipakai di kedua bulan (tidak ada lagi "Travel down 100%").
 - **v2.3.3**: ikon aplikasi (logo, PWA 192/512, maskable, apple-touch, favicon) berganti biru `#1F4FB8`; warna di dalam aplikasi tidak berubah.
+- **v2.3.4**: ikon shortcut Transfer ikut biru `#1F4FB8`.
