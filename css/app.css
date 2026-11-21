@@ -10,7 +10,7 @@
   --expense: #B33A0B; --expense-tint: #FCEEE2;
   --transfer: #3730A3; --transfer-tint: #EEF0FF;
   --warn: #DB8424; --over: #C2410C; --bar-low: #B7CAF1;
-  --acc-bank: #123B33; --acc-bank-2: #1E5C4F; --acc-ewallet: #272F7A; --acc-ewallet-2: #4450B8; --acc-tunai: #6B3F08; --acc-tunai-2: #A66A1C; --acc-text: #FFFFFF;
+  --acc-bank: #173A86; --acc-bank-2: #2D5FCB; --acc-ewallet: #173A86; --acc-ewallet-2: #2D5FCB; --acc-tunai: #6B3F08; --acc-tunai-2: #A66A1C; --acc-text: #FFFFFF;
   --shadow: 0 1px 2px rgba(40,34,18,.05), 0 6px 18px -10px rgba(40,34,18,.16);
   --shadow-lg: 0 14px 38px -8px rgba(18,24,38,.28);
   --scrim: rgba(12,16,26,.5);
@@ -46,7 +46,7 @@
   --expense: #FF9A6B; --expense-tint: #38211A;
   --transfer: #A5B4FC; --transfer-tint: #1B2440;
   --warn: #F4A55A; --over: #FF7A45; --bar-low: #2A4373;
-  --acc-bank: #0F3029; --acc-bank-2: #1B5245; --acc-ewallet: #1E2563; --acc-ewallet-2: #3640A0; --acc-tunai: #53310A; --acc-tunai-2: #8A5717;
+  --acc-bank: #112B66; --acc-bank-2: #224C9E; --acc-ewallet: #112B66; --acc-ewallet-2: #224C9E; --acc-tunai: #53310A; --acc-tunai-2: #8A5717;
   --shadow: 0 0 0 1px rgba(255,255,255,.03);
   --shadow-lg: 0 14px 38px -8px rgba(0,0,0,.6);
   --chip-bg: #1B2130; --nav-off: #8A93A6; --nav-pill: #1A2D57; --card-line: rgba(255,255,255,.05); --sel-ring: #9DBCFF;
